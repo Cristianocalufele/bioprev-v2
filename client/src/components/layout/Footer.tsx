@@ -7,11 +7,6 @@ export default function Footer() {
   return (
     <footer className="bg-white border-t-8 border-[#f2c92f] pt-16 pb-8">
       <div className="container mx-auto px-4 max-w-6xl">
-        {/* Company Certificate */}
-        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 mb-10 sm:mb-16 shadow-sm flex items-center justify-center">
-          <img src={certificateImage} alt="Certificado EIC ISO 9001 da Bioprev" className="h-28 w-auto object-contain" loading="lazy" />
-        </div>
-
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-10 sm:mb-16">
           {/* Column 1 */}
           <div className="space-y-3">
@@ -19,6 +14,7 @@ export default function Footer() {
             <a href="#" className="block text-[#666666] hover:text-[#007cc3] text-sm font-medium">Pesquisar</a>
             <Link href="/contact"><span className="block text-[#666666] hover:text-[#007cc3] text-sm font-medium cursor-pointer">Contacto</span></Link>
             <a href="#" className="block text-[#666666] hover:text-[#007cc3] text-sm font-medium">Entrar</a>
+            <img src={certificateImage} alt="Certificado EIC ISO 9001 da Bioprev" className="h-20 w-auto object-contain pt-4 opacity-80" loading="lazy" />
           </div>
 
           {/* Column 2 */}
