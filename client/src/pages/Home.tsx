@@ -13,9 +13,9 @@ export default function Home() {
     <div className="min-h-screen bg-background flex flex-col font-sans">
       <SEOHead
         title="Início"
-        description="Bioprev Angola — empresa líder em controle de pragas, desinfestação, fumigação, limpeza profissional, recolha de resíduos, tratamento de água e jardinagem. Presente em Luanda, Benguela e Huambo."
+        description="Bioprev Angola — empresa líder em controle de pragas, desinfestação, fumigação, limpeza profissional, recolha de resíduos, fornecimentode água e jardinagem. Presente em Luanda, Benguela e Huambo."
         canonical="/"
-        keywords="controle de pragas Angola, desinfestação Luanda, fumigação Angola, limpeza profissional Angola, Bioprev Angola, recolha resíduos Angola, tratamento água Angola, jardinagem Angola"
+        keywords="controle de pragas Angola, desinfestação Luanda, fumigação Angola, limpeza profissional Angola, Bioprev Angola, recolha resíduos Angola, fornecimentoágua Angola, jardinagem Angola"
         structuredData={[organizationSchema, websiteSchema, localBusinessSchema]}
       />
       <Header />

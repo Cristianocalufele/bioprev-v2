@@ -1,9 +1,9 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Contact = lazy(() => import("@/pages/Contact"));
@@ -27,6 +27,52 @@ const History = lazy(() => import("@/pages/about/History"));
 const Careers = lazy(() => import("@/pages/about/Careers"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
+function ScrollToHash() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      const id = hash.replace("#", "");
+      const tryScroll = (attempts = 0) => {
+        const el = document.getElementById(id);
+        if (el) {
+          setTimeout(() => {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        } else if (attempts < 20) {
+          setTimeout(() => tryScroll(attempts + 1), 300);
+        }
+      };
+      tryScroll();
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [location]);
+
+  // detecta cliques em links com # na mesma página
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest("a");
+      if (!target) return;
+      const href = target.getAttribute("href");
+      if (!href || !href.includes("#")) return;
+
+      const hash = href.split("#")[1];
+      const el = document.getElementById(hash);
+      if (el) {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
+
+  return null;
+}
+
 function PageLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -38,6 +84,7 @@ function PageLoader() {
 function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
+      <ScrollToHash />
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/contact" component={Contact} />

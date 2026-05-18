@@ -75,7 +75,7 @@ export const organizationSchema = {
   name: "Bioprev Angola",
   url: "https://bioprevangola.com",
   logo: "https://bioprevangola.com/favicon.png",
-  description: "Empresa angolana líder em controle de pragas, desinfestação, limpeza profissional, recolha de resíduos, tratamento de água e jardinagem.",
+  description: "Empresa angolana líder em controle de pragas, desinfestação, limpeza profissional, recolha de resíduos, fornecimento de água e jardinagem.",
   contactPoint: [
     {
       "@type": "ContactPoint",
@@ -123,7 +123,7 @@ export const localBusinessSchema = {
   url: "https://bioprevangola.com",
   telephone: "+244-928-737-888",
   email: "geral@bioprev.com",
-  description: "Empresa angolana especializada em controle de pragas, desinfestação, fumigação, limpeza profissional, recolha de resíduos, tratamento de água e jardinagem. Presente em Luanda, Benguela e Huambo.",
+  description: "Empresa angolana especializada em controle de pragas, desinfestação, fumigação, limpeza profissional, recolha de resíduos, fornecimento de água e jardinagem. Presente em Luanda, Benguela e Huambo.",
   address: {
     "@type": "PostalAddress",
     streetAddress: "Rua Urbanova, C/N, Benfica",

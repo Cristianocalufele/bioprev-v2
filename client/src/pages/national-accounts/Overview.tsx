@@ -10,11 +10,11 @@ const data: ServicePageData = {
   heroImageAlt: "Visão geral das contas nacionais",
   breadcrumbLabel: "Visão geral",
   breadcrumbParent: { label: "Contas nacionais", href: "/national-accounts" },
-  heroTitle: "Visão geral das\nContas Nacionais",
+  heroTitle: "Visão geral a\nNível Nacional",
   heroSubtitle: "Um programa centralizado de gestão de pragas para empresas com múltiplas localizações em Angola. Simplifique a gestão, reduza custos e garanta proteção consistente em todas as suas instalações.",
-  introText: "Empresas com múltiplas localizações enfrentam desafios únicos na gestão de pragas: garantir serviço consistente, coordenar fornecedores e manter visibilidade sobre o estado de cada unidade. O programa de Contas Nacionais da Bioprev foi desenhado para resolver estes desafios.",
+  introText: "Empresas com múltiplas localizações enfrentam desafios únicos na gestão de pragas: garantir serviço consistente, coordenar fornecedores e manter visibilidade sobre o estado de cada unidade. O programa a Nível Nacional da Bioprev foi desenhado para resolver estes desafios.",
   introSubtext: "Com um gestor de conta dedicado, protocolos padronizados e equipas locais em Luanda, Benguela e Huambo, o nosso programa garante que cada instalação da sua organização recebe o mesmo nível de excelência. Um único contrato, um único ponto de contacto e relatórios consolidados que simplificam a gestão e reduzem custos operacionais.",
-  sectionTitle: "Como funciona o programa de Contas Nacionais",
+  sectionTitle: "Como funciona o programa a Nível Nacional",
   sectionText: "O programa foi desenhado para empresas que operam em múltiplas regiões de Angola e necessitam de uma abordagem centralizada, eficiente e transparente para o controle de pragas em todas as suas instalações.",
   serviceCards: [
     {

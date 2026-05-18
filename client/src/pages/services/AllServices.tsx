@@ -29,7 +29,7 @@ export default function AllServices() {
     <div className="min-h-screen bg-white flex flex-col font-sans">
       <SEOHead
         title="Serviços"
-        description="Serviços completos de controle de pragas, desinfestação, limpeza profissional, recolha de resíduos, tratamento de água e jardinagem em Angola. Soluções Bioprev."
+        description="Serviços completos de controle de pragas, desinfestação, limpeza profissional, recolha de resíduos, fornecimento de água e jardinagem em Angola. Soluções Bioprev."
         canonical="/services"
         keywords="serviços controle pragas Angola, desinfestação, limpeza profissional, recolha resíduos, tratamento água, jardinagem, Bioprev serviços"
         structuredData={breadcrumbSchema([
