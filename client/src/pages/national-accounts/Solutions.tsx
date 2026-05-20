@@ -11,9 +11,9 @@ const data: ServicePageData = {
   breadcrumbLabel: "Soluções nacionais",
   breadcrumbParent: { label: "Contas nacionais", href: "/national-accounts" },
   heroTitle: "Soluções nacionais de\ncontrole de pragas",
-  heroSubtitle: "Uma gama completa de serviços disponíveis em todas as regiões de Angola através do programa de Contas Nacionais. Desinfestação, limpeza, recolha de resíduos, fornecimento de água e jardinagem — tudo coordenado centralmente.",
+  heroSubtitle: "Uma gama completa de serviços disponíveis em todas as regiões de Angola através do programa de Contas Nacionais. Desinfestação, limpeza, recolha de resíduos, tratamento de água e jardinagem — tudo coordenado centralmente.",
   introText: "O programa de Contas Nacionais da Bioprev disponibiliza todos os nossos serviços de forma integrada e coordenada em todas as suas localizações. Cada serviço é prestado por equipas locais especializadas, com supervisão centralizada do gestor de conta.",
-  introSubtext: "Desde a desinfestação e controle de pragas até à limpeza profissional, recolha de resíduos, fornecimento de água e jardinagem — oferecemos uma solução completa que cobre todas as necessidades de higiene e manutenção das suas instalações em Luanda, Benguela, Huambo e outras regiões de Angola.",
+  introSubtext: "Desde a desinfestação e controle de pragas até à limpeza profissional, recolha de resíduos, tratamento de água e jardinagem — oferecemos uma solução completa que cobre todas as necessidades de higiene e manutenção das suas instalações em Luanda, Benguela, Huambo e outras regiões de Angola.",
   sectionTitle: "Todos os serviços num único programa",
   sectionText: "As soluções nacionais da Bioprev integram todos os nossos serviços num programa coerente e coordenado, eliminando a necessidade de gerir múltiplos fornecedores e contratos para diferentes necessidades de higiene e manutenção.",
   serviceCards: [
@@ -25,7 +25,7 @@ const data: ServicePageData = {
     },
     {
       title: "Limpeza, resíduos e manutenção",
-      description: "Limpeza industrial e doméstica, recolha de resíduos, fornecimento de água e jardinagem — serviços complementares que garantem a higiene e apresentação de todas as suas instalações.",
+      description: "Limpeza industrial e doméstica, recolha de resíduos, tratamento de água e jardinagem — serviços complementares que garantem a higiene e apresentação de todas as suas instalações.",
       image: "https://images.unsplash.com/photo-1581578731522-745505146317?auto=format&fit=crop&q=75&w=800",
       imageAlt: "Serviços complementares"
     }
@@ -33,11 +33,10 @@ const data: ServicePageData = {
   detailsTitle: "Serviços disponíveis no programa",
   detailsSubtitle: "Todos os serviços da Bioprev estão disponíveis no programa de Contas Nacionais, permitindo que a sua organização beneficie de uma solução integrada para todas as necessidades.",
   details: [
-    { icon: Shield, title: "Desinfestação geral", description: "Fumigação, pulverização, desratização, desbaratização e aplicação de gel em todas as suas instalações, com métodos selecionados de acordo com o tipo de praga e o ambiente de cada unidade." },
-    { icon: Bug, title: "Controle de gorgulhos e traças", description: "Proteção especializada para produtos armazenados — cereais, grãos, têxteis e arquivos — com monitorização por feromonas, tratamento térmico e relatórios estatísticos de controle por localização." },
+    { icon: Shield, title: "Desinfestação geral e controle de gorgulhos e traças", description: "Fumigação, pulverização, desratização, desbaratização e aplicação de gel em todas as instalações. Inclui protecção especializada para produtos armazenados — cereais, grãos, têxteis e arquivos — com monitorização por feromonas, tratamento térmico e relatórios estatísticos de controle por localização.", fullWidth: true },
     { icon: SprayCan, title: "Limpeza profissional", description: "Limpeza industrial, doméstica, hospitalar, de áreas alimentares, escritórios, varredura urbana e limpeza de tanques de combustível em todas as suas unidades." },
     { icon: Trash2, title: "Recolha de resíduos", description: "Recolha e gestão de resíduos urbanos, domésticos, pós-construção, hospitalares e industriais com frota própria e certificação de destino final para cada localização." },
-    { icon: Droplets, title: "fornecimento de água", description: "Fornecimento e fornecimento de água potável para as suas instalações, garantindo a qualidade e segurança do abastecimento em conformidade com as normas sanitárias." },
+    { icon: Droplets, title: "Tratamento de água", description: "Fornecimento e tratamento de água potável para as suas instalações, garantindo a qualidade e segurança do abastecimento em conformidade com as normas sanitárias." },
     { icon: Trees, title: "Jardinagem e paisagismo", description: "Manutenção de espaços verdes, jardins e áreas exteriores das suas instalações, contribuindo para um ambiente agradável e a imagem profissional da organização." },
     { icon: Zap, title: "Resposta de emergência", description: "Serviço de resposta rápida para emergências de pragas em qualquer localização, com mobilização coordenada de equipas e recursos das filiais mais próximas." },
     { icon: ClipboardCheck, title: "Auditorias e conformidade", description: "Auditorias regulares de higiene e controle de pragas em todas as instalações, com documentação e relatórios que suportam auditorias externas e requisitos de certificação." }

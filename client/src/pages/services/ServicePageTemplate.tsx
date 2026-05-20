@@ -19,6 +19,7 @@ export interface ServiceDetailItem {
   icon: LucideIcon;
   title: string;
   description: string;
+  fullWidth?: boolean;
 }
 
 export interface ServiceStep {
@@ -225,7 +226,7 @@ export default function ServicePageTemplate({ data }: { data: ServicePageData })
 
               <div ref={detailsGrid.ref} className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
                 {data.details.map((detail, idx) => (
-                  <div key={idx} className={`bg-white border-t-4 border-[#f2c92f] shadow-sm p-5 sm:p-6 md:p-8 flex flex-col hover-lift sr-hidden stagger-${idx + 1} ${detailsGrid.isVisible ? 'sr-visible' : ''}`}>
+                  <div key={idx} className={`bg-white border-t-4 border-[#f2c92f] shadow-sm p-5 sm:p-6 md:p-8 flex flex-col hover-lift sr-hidden stagger-${idx + 1} ${detailsGrid.isVisible ? 'sr-visible' : ''} ${detail.fullWidth ? 'sm:col-span-2' : ''}`}>
                     <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
                       <detail.icon className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007cc3] shrink-0" strokeWidth={1.5} />
                       <h3 className="text-base sm:text-lg md:text-xl font-medium text-[#333333]">{detail.title}</h3>
