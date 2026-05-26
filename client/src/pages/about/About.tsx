@@ -42,7 +42,7 @@ export default function About() {
             <img 
               src={aboutHeroBg}
               alt="Quem somos - BIOPREV" 
-              className={`w-full h-full object-cover transition-transform duration-[1.5s] ease-out ${heroLoaded ? 'scale-100' : 'scale-110'}`}
+              className={`w-full h-full object-cover object-top transition-transform duration-[1.5s] ease-out ${heroLoaded ? 'scale-100' : 'scale-110'}`}
             />
             <div className="absolute inset-0 bg-black/50" />
           </div>
