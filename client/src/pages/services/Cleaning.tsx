@@ -1,5 +1,7 @@
 import { Sparkles, Building2, Factory, Home, Truck, Fuel, GraduationCap, Hotel, Utensils, Briefcase, ShoppingCart, Warehouse, Pill } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
+import limpezaImg from "../../assets/images/limpeza-fbc.png";
+import senhoraImg from "../../assets/images/senhora.png";
 
 const data: ServicePageData = {
   seoTitle: "Limpeza Profissional em Angola",
@@ -19,13 +21,13 @@ const data: ServicePageData = {
     {
       title: "Limpeza comercial e industrial",
       description: "Serviços de limpeza para escritórios, lojas, fábricas, hospitais, áreas alimentares, centros comerciais e espaços públicos, com equipas dedicadas, equipamento de última geração e horários flexíveis.",
-      image: "/src/assets/images/limpeza-fbc.png",
+      image: limpezaImg,
       imageAlt: "Limpeza comercial e industrial"
     },
     {
       title: "Limpeza doméstica e urbana",
       description: "Serviços de limpeza para residências, condomínios e varredura urbana em vias públicas. A limpeza das cidades é uma necessidade higiénica, de proteção ambiental e estética, imperativa para a saúde pública.",
-      image: "/src/assets/images/senhora.png",
+      image: senhoraImg,
       imageAlt: "Limpeza doméstica e urbana"
     }
   ],
