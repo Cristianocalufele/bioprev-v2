@@ -4,6 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Link } from "wouter";
 import Footer from "@/components/layout/Footer";
 import SEOHead, { breadcrumbSchema } from "@/components/SEOHead";
+import servicosImg from "../../assets/images/home-pragas-card.png";
 
 export default function AllServices() {
   const sectors = [
@@ -29,7 +30,7 @@ export default function AllServices() {
     <div className="min-h-screen bg-white flex flex-col font-sans">
       <SEOHead
         title="Serviços"
-        description="Serviços completos de controle de pragas, desinfestação, limpeza profissional, recolha de resíduos, fornecimento de água e jardinagem em Angola. Soluções Bioprev."
+        description="Serviços completos de controle de pragas, desinfestação, limpeza profissional, recolha de resíduos, tratamento de água e jardinagem em Angola. Soluções Bioprev."
         canonical="/services"
         keywords="serviços controle pragas Angola, desinfestação, limpeza profissional, recolha resíduos, tratamento água, jardinagem, Bioprev serviços"
         structuredData={breadcrumbSchema([
@@ -43,7 +44,7 @@ export default function AllServices() {
         <section className="relative h-[300px] sm:h-[380px] md:h-[460px] lg:h-[500px] flex items-center overflow-hidden">
           <div className="absolute inset-0 z-0">
             <img 
-              src="https://res.cloudinary.com/ddcgvnakp/image/upload/v1777906774/imagem_1_tvee6f.png" 
+              src={servicosImg}
               alt="Técnico de controle de pragas" 
               className="w-full h-full object-cover"
             />
@@ -98,7 +99,7 @@ export default function AllServices() {
         <section className="grid grid-cols-1 md:grid-cols-2">
           <div className="relative h-[350px] sm:h-[420px] md:h-[500px] lg:h-[600px] group overflow-hidden">
             <img 
-              src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=75&w=800" 
+              src={servicosImg}
               alt="Controle de pragas" 
                 loading="lazy"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
