@@ -6,6 +6,8 @@ import SEOHead, { breadcrumbSchema } from "@/components/SEOHead";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useEffect, useState } from "react";
 import aboutHeroBg from "../../assets/images/about-hero.jpg";
+import profissionalImg from "../../assets/images/profissional.png";
+import mapaAngolaImg from "../../assets/images/mapa_angola.png";
 
 export default function About() {
   const [heroLoaded, setHeroLoaded] = useState(false);
@@ -99,7 +101,7 @@ export default function About() {
         <section ref={cardsReveal.ref} className="grid grid-cols-1 md:grid-cols-2">
           <div className="relative h-[350px] sm:h-[420px] md:h-[500px] lg:h-[600px] group overflow-hidden">
             <img
-              src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=75&w=1280"
+              src={profissionalImg}
               alt="Equipa BIOPREV"
               loading="lazy"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -121,7 +123,7 @@ export default function About() {
           </div>
           <div className="relative h-[350px] sm:h-[420px] md:h-[500px] lg:h-[600px] group overflow-hidden">
             <img
-              src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=75&w=1280"
+              src={mapaAngolaImg}
               loading="lazy"
               alt="Tecnologia e inovação"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"

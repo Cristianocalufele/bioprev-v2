@@ -1,6 +1,8 @@
 import { Zap, Shield, SprayCan, Microscope, Wind, FileCheck, AlertTriangle, Bug, Rat, Archive, Thermometer, FlaskConical, BarChart3, Factory, Hotel, Utensils, ShoppingCart, Briefcase, Building2, Warehouse, Pill } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
 import desinfestacaoHero from "../../assets/images/service-desinfestacao-hero.jpg";
+import desinfEspecializadaImg from "../../assets/images/imagem1_convertida.png";
+import desinfPreventivaImg from "../../assets/images/imagem2_convertida.png";
 
 const data: ServicePageData = {
   seoTitle: "Desinfestação Profissional em Angola",
@@ -20,13 +22,13 @@ const data: ServicePageData = {
     {
       title: "Desinfestação especializada",
       description: "Os nossos serviços de desinfestação especializada fornecem uma resposta rápida para ajudá-lo a manter um alto nível de higiene nas suas instalações, reduzindo o risco de infecção e contaminação através de fumigação, pulverização e tratamentos com gel.",
-      image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=75&w=800",
+      image: desinfEspecializadaImg,
       imageAlt: "Desinfestação especializada"
     },
     {
       title: "Desinfestação preventiva",
       description: "Uma série de soluções de desinfestação preventiva — incluindo desratização, desbaratização e controlo de gorgulhos e traças — concebidas para ajudar as empresas a manter um ambiente seguro e proporcionar paz de espírito aos funcionários e visitantes.",
-      image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=75&w=800",
+      image: desinfPreventivaImg,
       imageAlt: "Desinfestação preventiva"
     }
   ],

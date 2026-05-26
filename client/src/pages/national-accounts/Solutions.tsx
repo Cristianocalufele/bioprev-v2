@@ -1,5 +1,6 @@
 import { Zap, Shield, Bug, SprayCan, Droplets, Trees, Trash2, ClipboardCheck } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "../services/ServicePageTemplate";
+import limpezaCardImg from "../../assets/images/limpeza.png";
 
 const data: ServicePageData = {
   seoTitle: "Soluções Nacionais de Controle de Pragas",
@@ -26,7 +27,7 @@ const data: ServicePageData = {
     {
       title: "Limpeza, resíduos e manutenção",
       description: "Limpeza industrial e doméstica, recolha de resíduos, tratamento de água e jardinagem — serviços complementares que garantem a higiene e apresentação de todas as suas instalações.",
-      image: "https://images.unsplash.com/photo-1581578731522-745505146317?auto=format&fit=crop&q=75&w=800",
+      image: limpezaCardImg,
       imageAlt: "Serviços complementares"
     }
   ],
