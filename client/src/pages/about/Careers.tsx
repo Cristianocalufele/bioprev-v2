@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import Footer from "@/components/layout/Footer";
 import SEOHead, { breadcrumbSchema } from "@/components/SEOHead";
 import carreirasHero from "../../assets/images/careers-hero.jpg";
+import profissionalNegro from "../../assets/images/profissional-negro.png";
 
 export default function Careers() {
   return (
@@ -26,7 +27,7 @@ export default function Careers() {
         <section className="relative h-[350px] sm:h-[420px] md:h-[500px] flex items-center overflow-hidden">
           <div className="absolute inset-0 z-0">
             <img 
-              src={carreirasHero} 
+              src={profissionalNegro} 
               alt="Carreiras - BIOPREV" 
               className="w-full h-full object-cover"
             />

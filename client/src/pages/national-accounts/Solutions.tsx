@@ -1,13 +1,14 @@
 import { Zap, Shield, Bug, SprayCan, Droplets, Trees, Trash2, ClipboardCheck } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "../services/ServicePageTemplate";
 import limpezaCardImg from "../../assets/images/limpeza.png";
+import equipaNegra from "../../assets/images/equipa-negra.png";
 
 const data: ServicePageData = {
   seoTitle: "Soluções Nacionais de Controle de Pragas",
   seoDescription: "Todos os serviços Bioprev num único programa nacional: desinfestação, limpeza, resíduos, água e jardinagem coordenados centralmente em Angola.",
   seoKeywords: "soluções nacionais pragas Angola, serviços integrados controle pragas, programa nacional Bioprev, serviços multi-localização",
   seoCanonical: "/national-accounts/solutions",
-  heroImage: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=75&w=1280",
+  heroImage: equipaNegra,
   heroImageAlt: "Soluções nacionais Bioprev",
   breadcrumbLabel: "Soluções nacionais",
   breadcrumbParent: { label: "Contas nacionais", href: "/national-accounts" },
