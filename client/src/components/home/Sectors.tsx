@@ -13,7 +13,6 @@ export default function Sectors() {
     { name: "Varejo de alimentos", icon: <ShoppingCart className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
     { name: "Restauração", icon: <Utensils className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
     { name: "Escritórios", icon: <Briefcase className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Farmacêutica", icon: <Pill className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
   ];
 
   return (

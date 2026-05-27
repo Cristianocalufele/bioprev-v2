@@ -5,14 +5,13 @@ import { Link, useLocation } from "wouter";
 import logoImg from "@/assets/images/logo.png";
 
 const disinfestationSectors = [
-  { icon: Factory, name: 'Fábricas de\nComida',href:'/services/disinfestation#sectors' },
+  { icon: Factory, name: 'Processamento\nalimentar' },
   { icon: Hotel, name: 'Hoteis' },
-  { icon: Utensils, name: 'Restaurantes' },
-  { icon: ShoppingCart, name: 'Supermercados' },
+  { icon: Utensils, name: 'Restaurante' },
+  { icon: ShoppingCart, name: 'Retalho\nalimentar' },
   { icon: Briefcase, name: 'Escritórios' },
-  { icon: Building2, name: 'Condomínios' },
-  { icon: Warehouse, name: 'Armazéns' },
-  { icon: Pill, name: 'Farmácias' },
+  { icon: Building2, name: 'Gestão de\ninstalações' },
+  { icon: Warehouse, name: 'Logística e\narmazenamento' },
 ];
 
 export default function Header() {
@@ -55,7 +54,7 @@ export default function Header() {
     },
     {
       id: 'national',
-      label: 'Nível nacional',
+      label: 'Contas nacionais',
       testId: 'nav-national',
       content: [
         { icon: Globe, text: 'Visão\ngeral', href: '/national-accounts/overview' },

@@ -15,7 +15,6 @@ export default function AllServices() {
     { name: "Hotelaria", icon: Hotel },
     { name: "Escritórios", icon: Briefcase },
     { name: "Restauração", icon: Utensils },
-    { name: "Farmacêutica", icon: Pill },
   ];
 
   const ipmSteps = [

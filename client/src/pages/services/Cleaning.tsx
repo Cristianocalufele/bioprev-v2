@@ -62,7 +62,6 @@ const data: ServicePageData = {
     { icon: Factory, name: "Processamento alimentar", description: "Limpeza especializada de instalações de produção alimentar, seguindo protocolos rigorosos de higiene e desinfecção." },
     { icon: ShoppingCart, name: "Retalho alimentar", description: "Limpeza de supermercados e lojas de alimentos, incluindo áreas de venda, zonas de preparação e câmaras frigoríficas." },
     { icon: Warehouse, name: "Logística e armazenamento", description: "Limpeza industrial de armazéns e centros de distribuição, mantendo condições sanitárias adequadas para as mercadorias." },
-    { icon: Pill, name: "Farmacêutica", description: "Limpeza de salas limpas, laboratórios e áreas de produção farmacêutica, cumprindo os padrões GMP exigidos pela indústria." },
   ]
 };
 
