@@ -1,4 +1,4 @@
-import { Factory, Building2, Truck, Hotel, ShoppingCart, Briefcase, Utensils, Pill } from "lucide-react";
+import { Home, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 export default function Sectors() {
@@ -6,13 +6,14 @@ export default function Sectors() {
   const gridReveal = useScrollReveal(0.1);
 
   const sectors = [
-    { name: "Processamento de alimentos", icon: <Factory className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Gestão de instalações", icon: <Building2 className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Logística e armazenamento", icon: <Truck className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Hotéis", icon: <Hotel className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Varejo de alimentos", icon: <ShoppingCart className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Restauração", icon: <Utensils className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
-    { name: "Escritórios", icon: <Briefcase className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Residência", icon: <Home className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Escritório", icon: <Briefcase className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Restaurante", icon: <Utensils className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Empresas", icon: <Building2 className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Condomínio", icon: <Building className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Espurgos de Navios", icon: <Ship className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Espurgos de Silos", icon: <Warehouse className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
+    { name: "Espalate", icon: <Sprout className="w-16 h-16 text-[#333333] stroke-[1px]" /> },
   ];
 
   return (

@@ -1,17 +1,18 @@
-import { Search, MapPin, Phone, Menu, Target, Globe, Info, BookOpen, Wind, Droplets, Trash2, Trees, ShieldCheck, ChevronRight, BarChart3, Factory, Hotel, Utensils, ShoppingCart, Briefcase, Building2, Warehouse, Pill } from "lucide-react";
+import { Search, MapPin, Phone, Menu, Target, Globe, Info, BookOpen, Wind, Droplets, Trash2, Trees, ShieldCheck, ChevronRight, BarChart3, Home, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import logoImg from "@/assets/images/logo.png";
 
 const disinfestationSectors = [
-  { icon: Factory, name: 'Processamento\nalimentar' },
-  { icon: Hotel, name: 'Hoteis' },
+  { icon: Home, name: 'Residência' },
+  { icon: Briefcase, name: 'Escritório' },
   { icon: Utensils, name: 'Restaurante' },
-  { icon: ShoppingCart, name: 'Retalho\nalimentar' },
-  { icon: Briefcase, name: 'Escritórios' },
-  { icon: Building2, name: 'Gestão de\ninstalações' },
-  { icon: Warehouse, name: 'Logística e\narmazenamento' },
+  { icon: Building2, name: 'Empresas' },
+  { icon: Building, name: 'Condomínio' },
+  { icon: Ship, name: 'Espurgos de\nNavios' },
+  { icon: Warehouse, name: 'Espurgos de\nSilos' },
+  { icon: Sprout, name: 'Espalate' },
 ];
 
 export default function Header() {
