@@ -1,4 +1,4 @@
-import { Sparkles, Building2, Factory, Home, Truck, Fuel, GraduationCap, Hotel, Utensils, Briefcase, ShoppingCart, Warehouse, Pill } from "lucide-react";
+import { Sparkles, Building2, Home, Truck, Fuel, GraduationCap, Briefcase, Utensils, Building, Ship, Warehouse, Sprout } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
 import limpezaImg from "../../assets/images/limpeza-fbc.png";
 import senhoraImg from "../../assets/images/senhora.png";
@@ -55,13 +55,14 @@ const data: ServicePageData = {
   sectorsTitle: "Setores onde atuamos com limpeza profissional",
   sectorsText: "A Bioprev adapta os seus serviços de limpeza às exigências de cada setor, garantindo ambientes limpos, seguros e em conformidade com as normas específicas de cada indústria.",
   sectors: [
-    { icon: Hotel, name: "Hotelaria", description: "Limpeza profissional de quartos, áreas comuns, restaurantes e spas, mantendo os mais altos padrões de higiene que os hóspedes esperam." },
-    { icon: Utensils, name: "Restauração", description: "Programas de limpeza intensiva para cozinhas, salas de refeição e áreas de preparação de alimentos, garantindo conformidade sanitária." },
-    { icon: Briefcase, name: "Escritórios", description: "Serviços diários ou periódicos de limpeza para escritórios, salas de reunião, copas e instalações sanitárias, com horários flexíveis." },
-    { icon: Building2, name: "Gestão de instalações", description: "Limpeza coordenada para edifícios comerciais com múltiplos pisos e inquilinos, incluindo áreas comuns e zonas técnicas." },
-    { icon: Factory, name: "Processamento alimentar", description: "Limpeza especializada de instalações de produção alimentar, seguindo protocolos rigorosos de higiene e desinfecção." },
-    { icon: ShoppingCart, name: "Retalho alimentar", description: "Limpeza de supermercados e lojas de alimentos, incluindo áreas de venda, zonas de preparação e câmaras frigoríficas." },
-    { icon: Warehouse, name: "Logística e armazenamento", description: "Limpeza industrial de armazéns e centros de distribuição, mantendo condições sanitárias adequadas para as mercadorias." },
+    { icon: Home, name: "Residência", description: "Limpeza profissional de residências com produtos seguros e equipas treinadas para cuidar do seu lar." },
+    { icon: Briefcase, name: "Escritório", description: "Serviços diários ou periódicos de limpeza para escritórios, salas de reunião e instalações sanitárias." },
+    { icon: Utensils, name: "Restaurante", description: "Programas de limpeza intensiva para cozinhas, salas de refeição e áreas de preparação de alimentos." },
+    { icon: Building2, name: "Empresas", description: "Limpeza coordenada para empresas de todos os sectores, garantindo ambientes de trabalho limpos e saudáveis." },
+    { icon: Building, name: "Condomínio", description: "Limpeza de áreas comuns e privadas em condomínios residenciais e comerciais." },
+    { icon: Ship, name: "Espurgos de Navios", description: "Limpeza especializada de navios, embarcações e contentores marítimos." },
+    { icon: Warehouse, name: "Espurgos de Silos", description: "Limpeza profissional de silos e armazéns de cereais, garantindo condições sanitárias adequadas." },
+    { icon: Sprout, name: "Espalate", description: "Limpeza de espaços agrícolas e de armazenamento de produtos." },
   ]
 };
 

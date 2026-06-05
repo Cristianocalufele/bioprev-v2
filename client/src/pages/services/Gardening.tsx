@@ -1,4 +1,4 @@
-import { Hotel, Utensils, Briefcase, Building2, Home } from "lucide-react";
+import { Home, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
 import jardinagemHero from "@/assets/images/service-jardinagem-hero.jpg";
 import gardeningCard1 from "../../assets/images/gardening-card1.jpg";
@@ -34,11 +34,14 @@ const data: ServicePageData = {
   sectorsTitle: "Setores onde atuamos com jardinagem",
   sectorsText: "A Bioprev adapta os serviços de jardinagem às necessidades de cada setor, valorizando áreas exteriores com manutenção profissional e atenção aos detalhes.",
   sectors: [
-    { icon: Hotel, name: "Hotelaria", description: "Manutenção de jardins, piscinas e áreas de lazer exteriores de hotéis e resorts, criando ambientes acolhedores para os hóspedes." },
-    { icon: Briefcase, name: "Escritórios", description: "Espaços verdes corporativos que melhoram o bem-estar dos colaboradores e projetam uma imagem profissional e sustentável." },
-    { icon: Building2, name: "Gestão de instalações", description: "Manutenção de jardins e áreas verdes em edifícios comerciais, centros empresariais e condomínios." },
-    { icon: Utensils, name: "Restauração", description: "Jardins e esplanadas de restaurantes que proporcionam ambientes agradáveis para os clientes e valorizam o espaço." },
-    { icon: Home, name: "Residencial", description: "Criação e manutenção de jardins residenciais e de condomínios, com cuidados adaptados às preferências de cada cliente." },
+    { icon: Home, name: "Residência", description: "Criação e manutenção de jardins residenciais com cuidados adaptados às preferências de cada cliente." },
+    { icon: Briefcase, name: "Escritório", description: "Espaços verdes corporativos que melhoram o bem-estar dos colaboradores e projectam uma imagem profissional." },
+    { icon: Utensils, name: "Restaurante", description: "Jardins e esplanadas de restaurantes que proporcionam ambientes agradáveis para os clientes." },
+    { icon: Building2, name: "Empresas", description: "Manutenção de jardins e áreas verdes em instalações empresariais de todos os sectores." },
+    { icon: Building, name: "Condomínio", description: "Manutenção de jardins e áreas verdes em condomínios residenciais e comerciais." },
+    { icon: Ship, name: "Espurgos de Navios", description: "Manutenção e limpeza de áreas verdes e exteriores em instalações portuárias e navais." },
+    { icon: Warehouse, name: "Espurgos de Silos", description: "Limpeza e manutenção de áreas exteriores em silos e armazéns." },
+    { icon: Sprout, name: "Espalate", description: "Serviços de jardinagem e manutenção de espaços agrícolas e de armazenamento." },
   ]
 };
 

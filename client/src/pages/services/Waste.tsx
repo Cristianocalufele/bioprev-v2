@@ -1,4 +1,4 @@
-import { Factory, Shield, Home, HardHat, Hotel, Utensils, Building2, Warehouse } from "lucide-react";
+import { Shield, Home, HardHat, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
 import residuosHero from "../../assets/images/service-residuos-hero.jpg";
 import residuosCard1 from "../../assets/images/service-residuos-card1.jpg";
@@ -49,11 +49,14 @@ const data: ServicePageData = {
   sectorsTitle: "Setores onde atuamos com recolha de resíduos",
   sectorsText: "A Bioprev oferece soluções de recolha e gestão de resíduos adaptadas às necessidades e regulamentações de cada setor, garantindo conformidade ambiental e rastreabilidade total.",
   sectors: [
-    { icon: Hotel, name: "Hotelaria", description: "Gestão de resíduos orgânicos, recicláveis e outros gerados por hotéis e resorts, com recolha discreta e frequente." },
-    { icon: Utensils, name: "Restauração", description: "Recolha de resíduos alimentares e embalagens de restaurantes e serviços de catering, cumprindo normas de higiene." },
-    { icon: Factory, name: "Processamento alimentar", description: "Gestão de resíduos de produção alimentar, incluindo subprodutos orgânicos e materiais de embalagem." },
-    { icon: Building2, name: "Gestão de instalações", description: "Recolha de resíduos em edifícios comerciais e centros empresariais, com separação e reciclagem otimizadas." },
-    { icon: Warehouse, name: "Logística e armazenamento", description: "Remoção de resíduos de embalagem, paletes danificadas e outros materiais gerados em operações logísticas." },
+    { icon: Home, name: "Residência", description: "Recolha de resíduos domésticos com frequência adequada às necessidades de cada habitação." },
+    { icon: Briefcase, name: "Escritório", description: "Recolha de resíduos de escritórios com separação de recicláveis e resíduos comuns." },
+    { icon: Utensils, name: "Restaurante", description: "Recolha de resíduos alimentares e embalagens de restaurantes, cumprindo normas de higiene." },
+    { icon: Building2, name: "Empresas", description: "Soluções de gestão de resíduos para empresas de todos os sectores, com conformidade ambiental." },
+    { icon: Building, name: "Condomínio", description: "Recolha e gestão de resíduos em condomínios residenciais e comerciais, com separação e reciclagem." },
+    { icon: Ship, name: "Espurgos de Navios", description: "Gestão e recolha de resíduos de navios e embarcações, cumprindo normas internacionais marítimas." },
+    { icon: Warehouse, name: "Espurgos de Silos", description: "Limpeza e remoção de resíduos em silos e armazéns de cereais." },
+    { icon: Sprout, name: "Espalate", description: "Recolha e gestão de resíduos agrícolas e de armazenamento de produtos." },
   ]
 };
 

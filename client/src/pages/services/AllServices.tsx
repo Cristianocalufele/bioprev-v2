@@ -1,5 +1,5 @@
 import Header from "@/components/layout/Header";
-import { ChevronRight, Plus, CheckCircle2, Target, Search, Factory, ShoppingCart, Warehouse, Building2, Hotel, Briefcase, Utensils, Pill } from "lucide-react";
+import { ChevronRight, Plus, CheckCircle2, Target, Search, Home, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "wouter";
 import Footer from "@/components/layout/Footer";
@@ -8,13 +8,14 @@ import servicosImg from "../../assets/images/home-pragas-card.png";
 
 export default function AllServices() {
   const sectors = [
-    { name: "Processamento alimentar", icon: Factory },
-    { name: "Retalho alimentar", icon: ShoppingCart },
-    { name: "Logística e armazenamento", icon: Warehouse },
-    { name: "Gestão de instalações", icon: Building2 },
-    { name: "Hotelaria", icon: Hotel },
-    { name: "Escritórios", icon: Briefcase },
-    { name: "Restauração", icon: Utensils },
+    { name: "Residência", icon: Home },
+    { name: "Escritório", icon: Briefcase },
+    { name: "Restaurante", icon: Utensils },
+    { name: "Empresas", icon: Building2 },
+    { name: "Condomínio", icon: Building },
+    { name: "Espurgos de Navios", icon: Ship },
+    { name: "Espurgos de Silos", icon: Warehouse },
+    { name: "Espalate", icon: Sprout },
   ];
 
   const ipmSteps = [
