@@ -1,4 +1,4 @@
-import { Shield, Home, HardHat, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
+import { Shield, Home, HardHat, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout, Factory } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
 import residuosHero from "../../assets/images/service-residuos-hero.jpg";
 import residuosCard1 from "../../assets/images/service-residuos-card1.jpg";
