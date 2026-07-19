@@ -1,4 +1,4 @@
-import { Sparkles, Building2, Home, Truck, Fuel, GraduationCap, Briefcase, Utensils, Building, Ship, Warehouse, Sprout } from "lucide-react";
+import { Sparkles, Building2, Home, Truck, Fuel, GraduationCap, Briefcase, Utensils, Building, Ship, Warehouse, Sprout, Factory } from "lucide-react";
 import ServicePageTemplate, { type ServicePageData } from "./ServicePageTemplate";
 import limpezaImg from "../../assets/images/limpeza-fbc.png";
 import senhoraImg from "../../assets/images/senhora.png";
