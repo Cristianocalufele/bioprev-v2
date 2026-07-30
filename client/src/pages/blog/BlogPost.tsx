@@ -1,153 +1,260 @@
 import { Link, useParams } from "wouter";
-import { ChevronRight, Globe, ShieldCheck, Bug } from "lucide-react";
-import blogFruitFlies from "@/assets/images/blog-fruit-flies.jpg";
+import { ChevronRight, Clock, ArrowRight, ArrowLeft } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import SEOHead, { breadcrumbSchema } from "@/components/SEOHead";
+import { getPostById, blogPosts } from "@/data/blogData";
+
+// Static image map — Vite requires static imports
+import imgBlogFruitFlies from "@/assets/images/blog-fruit-flies.jpg";
+import imgServiceLimpeza from "@/assets/images/service-limpeza-hero.jpg";
+import imgServiceResiduos from "@/assets/images/service-residuos-hero.jpg";
+import imgServiceJardinagem from "@/assets/images/service-jardinagem-hero.jpg";
+
+const imageMap: Record<string, string> = {
+  "blog-fruit-flies": imgBlogFruitFlies,
+  "service-limpeza-hero": imgServiceLimpeza,
+  "service-residuos-hero": imgServiceResiduos,
+  "service-jardinagem-hero": imgServiceJardinagem,
+};
 
 export default function BlogPost() {
   const { id } = useParams();
+  const post = id ? getPostById(id) : undefined;
 
-  // We use standard content for mockup purposes, adapting it slightly based on the ID if needed
-  const title = id === 'seguranca-e-conformidade-alimentar' 
-    ? "Como prevenir e eliminar moscas-da-fruta em restaurantes"
-    : "Melhores Práticas de Controle de Pragas para o Seu Setor";
-    
-  const breadcrumbCategory = id === 'seguranca-e-conformidade-alimentar' 
-    ? "Segurança alimentar"
-    : "Indústria";
+  // Related posts — up to 2 posts from the same category, excluding current
+  const related = post
+    ? blogPosts.filter((p) => p.id !== post.id && p.category === post.category).slice(0, 2)
+    : [];
+
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col font-sans">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center px-4">
+            <h1 className="text-2xl font-bold text-[#333333] mb-4">Artigo não encontrado</h1>
+            <p className="text-[#666666] mb-8">Este artigo não existe ou foi removido.</p>
+            <Link
+              href="/blog"
+              className="inline-block border-2 border-[#007cc3] text-[#007cc3] hover:bg-[#007cc3] hover:text-white px-8 py-3 font-medium transition-all"
+            >
+              Ver todos os artigos
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const heroImage = imageMap[post.image] ?? imgBlogFruitFlies;
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
       <SEOHead
-        title={title}
-        description={`${title} — Leia no blog Bioprev Angola sobre controle de pragas, segurança alimentar e boas práticas de higiene.`}
-        canonical={`/blog/${id}`}
-        keywords="controle pragas Angola, artigo pragas, blog Bioprev, segurança alimentar"
+        title={post.title}
+        description={post.description}
+        canonical={`/blog/${post.id}`}
+        keywords={`blog Bioprev Angola, ${post.categoryLabel}, controle pragas Angola`}
         type="article"
         structuredData={breadcrumbSchema([
           { name: "Início", url: "/" },
           { name: "Blog", url: "/blog" },
-          { name: breadcrumbCategory, url: `/blog/${id}` },
+          { name: post.categoryLabel, url: "/blog" },
+          { name: post.title, url: `/blog/${post.id}` },
         ])}
       />
       <Header />
-      
-      <main className="flex-grow">
-        {/* Hero Section */}
-        <div className="relative h-[280px] sm:h-[340px] md:h-[400px] w-full bg-[#001d3d] overflow-hidden">
-          {/* Background Image */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-60"
-            style={{ backgroundImage: `url(${blogFruitFlies})` }}
-          />
-          
-          {/* Content */}
-          <div className="relative z-10 h-full container mx-auto px-4 flex flex-col">
-            {/* Breadcrumb */}
-            <div className="py-4 flex items-center text-sm text-white font-bold mb-auto">
-              <Link href="/" className="hover:underline flex items-center">
-                Início
-              </Link>
-              <ChevronRight className="w-4 h-4 mx-1" />
-              <Link href="/blog" className="hover:underline">
-                Blog
-              </Link>
-              <ChevronRight className="w-4 h-4 mx-1" />
-              <span className="hover:underline cursor-pointer">{breadcrumbCategory}</span>
-              <ChevronRight className="w-4 h-4 mx-1" />
-              <span className="text-gray-300 font-normal truncate max-w-xs">{title}</span>
-            </div>
 
-            {/* Title */}
-            <div className="mb-16 max-w-4xl">
-              <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white leading-tight tracking-tight shadow-sm drop-shadow-md">
-                {title}
+      <main className="flex-grow">
+        {/* Hero */}
+        <div className="relative h-[280px] sm:h-[360px] md:h-[440px] w-full bg-[#001d3d] overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-50"
+            style={{ backgroundImage: `url(${heroImage})` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#001d3d]/80 via-transparent to-transparent" />
+
+          <div className="relative z-10 h-full container mx-auto px-4 sm:px-6 flex flex-col">
+            {/* Breadcrumb */}
+            <nav className="py-4 flex items-center flex-wrap gap-1 text-sm text-white/80 font-medium mb-auto">
+              <Link href="/" className="hover:underline">Início</Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link href="/blog" className="hover:underline">Blog</Link>
+              <ChevronRight className="w-4 h-4" />
+              <span className="text-white/60 truncate max-w-[200px] sm:max-w-xs">{post.title}</span>
+            </nav>
+
+            {/* Title area */}
+            <div className="mb-8 sm:mb-12 max-w-3xl">
+              <span className="inline-block bg-[#f2c92f] text-[#001d3d] text-xs font-bold uppercase tracking-wider px-3 py-1 mb-3">
+                {post.categoryLabel}
+              </span>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-4">
+                {post.title}
               </h1>
+              <div className="flex items-center gap-4 text-white/60 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" />
+                  {post.readTime} de leitura
+                </span>
+                <span>·</span>
+                <span>{post.date}</span>
+              </div>
             </div>
           </div>
-          
-          {/* Decorative Curve Bottom */}
+
+          {/* Decorative curve */}
           <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-20">
-            <svg className="relative block w-full h-[50px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M600,112.77C268.63,112.77,0,65.52,0,7.23V120H1200V7.23C1200,65.52,931.37,112.77,600,112.77Z" className="fill-white"></path>
+            <svg
+              className="relative block w-full h-[40px] sm:h-[50px]"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 1200 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M600,112.77C268.63,112.77,0,65.52,0,7.23V120H1200V7.23C1200,65.52,931.37,112.77,600,112.77Z"
+                className="fill-white"
+              />
             </svg>
-            {/* Arrow pointing down */}
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-[#f2c92f]">
-              <svg width="40" height="20" viewBox="0 0 40 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 2L20 16L38 2" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="container mx-auto px-4 py-16">
-          <div className="flex flex-col lg:flex-row gap-12 max-w-7xl mx-auto">
-            {/* Article Content */}
-            <div className="lg:w-2/3">
-              <div className="prose prose-lg max-w-none text-[#333333]">
-                <p className="text-lg leading-relaxed mb-6 font-medium text-gray-700">
-                  A mosca-da-fruta é uma praga aparentemente inofensiva que pode se multiplicar rapidamente e se tornar um problema significativo em um restaurante se as medidas adequadas não forem implementadas. Para proprietários e gerentes de restaurantes, o controle de moscas-da-fruta é um aspecto crítico da manutenção de um ambiente limpo, higiênico e acolhedor.
-                </p>
-                
-                <p className="text-lg leading-relaxed mb-10 text-gray-700">
-                  Este blog descreverá estratégias práticas e eficazes para eliminar infestações de moscas-da-fruta existentes e implementar medidas preventivas que impedem que a pequena praga se estabeleça em um restaurante.
-                </p>
+        {/* Content */}
+        <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-16 max-w-7xl">
+          <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+            {/* Article */}
+            <article className="lg:w-2/3">
+              {/* Intro */}
+              <p className="text-base sm:text-lg leading-relaxed text-[#444444] font-medium mb-8 sm:mb-10 border-l-4 border-[#f2c92f] pl-5">
+                {post.content.intro}
+              </p>
 
-                <h2 className="text-3xl font-bold text-[#001d3d] mb-6 tracking-tight">
-                  Estratégia abrangente: manejo integrado de pragas (MIP)
-                </h2>
-                
-                <p className="text-lg leading-relaxed mb-6 text-gray-700">
-                  O Manejo Integrado de Pragas (MIP) é uma abordagem sustentável e científica para gerenciar pragas. Em vez de simplesmente aplicar pesticidas de forma reativa, o MIP foca na prevenção a longo prazo de pragas e seus danos através de uma combinação de técnicas como controle biológico, manipulação de habitat, modificação de práticas culturais e uso de variedades resistentes.
-                </p>
-
-                <p className="text-lg leading-relaxed mb-6 text-gray-700">
-                  Num ambiente de restaurante, o MIP é crucial porque a presença de alimentos limita severamente as opções químicas de controle de pragas devido aos regulamentos de segurança e riscos de contaminação. Portanto, estratégias não químicas devem ser a primeira linha de defesa.
-                </p>
-
-                <h3 className="text-2xl font-bold text-[#001d3d] mb-4 mt-8 tracking-tight">
-                  1. Inspeção e Identificação
-                </h3>
-                <p className="text-lg leading-relaxed mb-6 text-gray-700">
-                  O primeiro passo no MIP é sempre entender com o que você está lidando. As moscas-da-fruta são frequentemente confundidas com moscas de drenagem ou mosquitos de fungos, e os tratamentos variam significativamente entre eles. As moscas-da-fruta são pequenas (cerca de 3 mm), tipicamente com olhos vermelhos brilhantes e coloração marrom. Elas são atraídas por frutas e vegetais maduros, podres ou em decomposição, bem como por líquidos fermentados como cerveja, vinho, licor e vinagre.
-                </p>
-
-                <h3 className="text-2xl font-bold text-[#001d3d] mb-4 mt-8 tracking-tight">
-                  2. Saneamento rigoroso
-                </h3>
-                <ul className="list-disc pl-6 mb-8 text-lg text-gray-700 space-y-2">
-                  <li>Limpe os drenos de forma consistente. O material orgânico em decomposição nas linhas de drenagem é um terreno de reprodução privilegiado.</li>
-                  <li>Esvazie o lixo regularmente e limpe as lixeiras. Resíduos derramados e forros vazando criam microambientes perfeitos para reprodução.</li>
-                  <li>Limpe derramamentos imediatamente, especialmente de xaropes e bebidas alcoólicas, focando debaixo de bancadas, eletrodomésticos e equipamentos.</li>
-                  <li>Rode o estoque e descarte produtos muito maduros. Inspecione entregas frescas antes de trazê-las.</li>
-                </ul>
+              {/* Sections */}
+              <div className="space-y-8 sm:space-y-10">
+                {post.content.sections.map((section, idx) => (
+                  <div key={idx}>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#001d3d] mb-3 sm:mb-4 leading-snug">
+                      {section.heading}
+                    </h2>
+                    <p className="text-[#555555] text-sm sm:text-base leading-relaxed mb-4">
+                      {section.body}
+                    </p>
+                    {section.list && (
+                      <ul className="space-y-2 mt-4">
+                        {section.list.map((item, i) => (
+                          <li key={i} className="flex items-start gap-3 text-sm sm:text-base text-[#555555]">
+                            <span className="mt-1.5 w-2 h-2 rounded-full bg-[#f2c92f] flex-shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
               </div>
-            </div>
+
+              {/* Closing */}
+              <div className="mt-10 sm:mt-12 bg-[#f8f9fa] border-t-4 border-[#007cc3] p-6 sm:p-8">
+                <p className="text-[#444444] text-sm sm:text-base leading-relaxed mb-5">
+                  {post.content.closing}
+                </p>
+                <Link
+                  href={post.serviceLink}
+                  className="inline-flex items-center gap-2 text-[#007cc3] font-semibold text-sm sm:text-base hover:gap-3 transition-all"
+                >
+                  Ver serviço de {post.serviceName} <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              {/* Back link */}
+              <div className="mt-8">
+                <Link
+                  href="/blog"
+                  className="inline-flex items-center gap-2 text-[#666666] text-sm hover:text-[#007cc3] transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Voltar ao blog
+                </Link>
+              </div>
+            </article>
 
             {/* Sidebar */}
-            <div className="lg:w-1/3">
-              {/* Promo Card */}
-              <div className="bg-gray-50 border-t-4 border-[#f2c92f] p-8 shadow-sm text-center">
-                <h3 className="text-2xl font-bold text-[#333333] mb-4 leading-tight">
-                  Controle de pragas para o setor de hospitalidade
+            <aside className="lg:w-1/3 space-y-6">
+              {/* CTA Card */}
+              <div className="bg-[#001d3d] p-6 sm:p-8 text-center">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-3 leading-snug">
+                  Precisa de {post.serviceName}?
                 </h3>
-                <p className="text-gray-600 mb-8">
-                  Mantendo hotéis e restaurantes seguros contra infestações dispendiosas de pragas
+                <p className="text-white/70 text-sm mb-6 leading-relaxed">
+                  A Bioprev actua em Luanda, Benguela e Huambo com equipas especializadas e produtos certificados.
                 </p>
-                
-                <div className="flex justify-center items-center gap-6 mb-8">
-                  <Globe className="w-10 h-10 text-[#001d3d]" strokeWidth={1.5} />
-                  <Bug className="w-10 h-10 text-[#001d3d]" strokeWidth={1.5} />
-                  <ShieldCheck className="w-10 h-10 text-[#001d3d]" strokeWidth={1.5} />
-                </div>
-                
-                <button className="w-full bg-[#0077c0] hover:bg-[#005fa3] text-white font-bold py-3 px-6 transition-colors shadow-sm">
-                  Descubra mais
-                </button>
+                <Link
+                  href="/contact"
+                  className="inline-block w-full bg-[#f2c92f] text-[#001d3d] font-bold py-3 px-6 text-sm hover:bg-[#f2c92f]/90 transition-colors text-center"
+                >
+                  Solicitar orçamento
+                </Link>
+                <Link
+                  href={post.serviceLink}
+                  className="inline-block w-full mt-3 border border-white/30 text-white/80 font-medium py-3 px-6 text-sm hover:bg-white/10 transition-colors text-center"
+                >
+                  Saber mais sobre o serviço
+                </Link>
               </div>
-            </div>
+
+              {/* Related articles */}
+              {related.length > 0 && (
+                <div className="border border-gray-100 p-5 sm:p-6">
+                  <h4 className="text-sm font-bold text-[#333333] uppercase tracking-wider mb-4 border-b border-gray-100 pb-3">
+                    Artigos relacionados
+                  </h4>
+                  <div className="space-y-4">
+                    {related.map((rel) => (
+                      <Link key={rel.id} href={`/blog/${rel.id}`}>
+                        <div className="flex gap-3 group cursor-pointer py-2">
+                          <div
+                            className="w-16 h-16 flex-shrink-0 bg-cover bg-center rounded-sm"
+                            style={{ backgroundImage: `url(${imageMap[rel.image]})` }}
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-[#333333] leading-snug group-hover:text-[#007cc3] transition-colors line-clamp-2">
+                              {rel.title}
+                            </p>
+                            <span className="text-xs text-[#999] flex items-center gap-1 mt-1">
+                              <Clock className="w-3 h-3" /> {rel.readTime}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Services quick links */}
+              <div className="bg-[#f8f9fa] p-5 sm:p-6">
+                <h4 className="text-sm font-bold text-[#333333] uppercase tracking-wider mb-4">
+                  Os nossos serviços
+                </h4>
+                <div className="space-y-2">
+                  {[
+                    { label: "Desinfestação Geral", href: "/services/disinfestation" },
+                    { label: "Limpeza Profissional", href: "/services/cleaning" },
+                    { label: "Recolha de Resíduos", href: "/services/waste" },
+                    { label: "Jardinagem", href: "/services/gardening" },
+                    { label: "Tratamento de Água", href: "/services/water" },
+                  ].map((s) => (
+                    <Link key={s.href} href={s.href}>
+                      <div className="flex items-center justify-between py-2 border-b border-gray-200 text-sm text-[#555555] hover:text-[#007cc3] transition-colors cursor-pointer">
+                        {s.label}
+                        <ChevronRight className="w-4 h-4 text-[#007cc3]" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
       </main>
