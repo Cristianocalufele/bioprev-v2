@@ -10,15 +10,23 @@ import { blogPosts } from "@/data/blogData";
 
 // Static image map — Vite requires static imports
 import imgBlogFruitFlies from "@/assets/images/blog-fruit-flies.jpg";
+import imgBlogFoodSafety from "@/assets/images/blog-food-safety.jpg";
+import imgBlogIndustry from "@/assets/images/blog-industry.jpg";
+import imgBlogInnovation from "@/assets/images/blog-innovation.jpg";
 import imgServiceLimpeza from "@/assets/images/service-limpeza-hero.jpg";
 import imgServiceResiduos from "@/assets/images/service-residuos-hero.jpg";
 import imgServiceJardinagem from "@/assets/images/service-jardinagem-hero.jpg";
+import imgServiceDesinf from "@/assets/images/service-desinfestacao-hero.jpg";
 
 const imageMap: Record<string, string> = {
   "blog-fruit-flies": imgBlogFruitFlies,
+  "blog-food-safety": imgBlogFoodSafety,
+  "blog-industry": imgBlogIndustry,
+  "blog-innovation": imgBlogInnovation,
   "service-limpeza-hero": imgServiceLimpeza,
   "service-residuos-hero": imgServiceResiduos,
   "service-jardinagem-hero": imgServiceJardinagem,
+  "service-desinfestacao-hero": imgServiceDesinf,
 };
 
 type BlogPageVariant = "all" | "news" | "tips";
