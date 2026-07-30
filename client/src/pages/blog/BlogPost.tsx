@@ -2,7 +2,7 @@ import { Link, useParams } from "wouter";
 import { ChevronRight, Clock, ArrowRight, ArrowLeft } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import SEOHead, { breadcrumbSchema } from "@/components/SEOHead";
+import SEOHead, { breadcrumbSchema, articleSchema } from "@/components/SEOHead";
 import { getPostById, blogPosts } from "@/data/blogData";
 
 // Static image map — Vite requires static imports
@@ -66,12 +66,21 @@ export default function BlogPost() {
         canonical={`/blog/${post.id}`}
         keywords={`blog Bioprev Angola, ${post.categoryLabel}, controle pragas Angola`}
         type="article"
-        structuredData={breadcrumbSchema([
-          { name: "Início", url: "/" },
-          { name: "Blog", url: "/blog" },
-          { name: post.categoryLabel, url: "/blog" },
-          { name: post.title, url: `/blog/${post.id}` },
-        ])}
+        structuredData={[
+          breadcrumbSchema([
+            { name: "Início", url: "/" },
+            { name: "Blog", url: "/blog" },
+            { name: post.categoryLabel, url: "/blog" },
+            { name: post.title, url: `/blog/${post.id}` },
+          ]),
+          articleSchema({
+            headline: post.title,
+            description: post.description,
+            datePublished: post.date,
+            url: `/blog/${post.id}`,
+            about: post.serviceName,
+          }),
+        ]}
       />
       <Header />
 
