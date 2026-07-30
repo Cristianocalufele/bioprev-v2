@@ -60,9 +60,6 @@ const data: ServicePageData = {
     { icon: Utensils, name: "Restaurante", description: "Programas de limpeza intensiva para cozinhas, salas de refeição e áreas de preparação de alimentos." },
     { icon: Building2, name: "Empresas", description: "Limpeza coordenada para empresas de todos os sectores, garantindo ambientes de trabalho limpos e saudáveis." },
     { icon: Building, name: "Condomínio", description: "Limpeza de áreas comuns e privadas em condomínios residenciais e comerciais." },
-    { icon: Ship, name: "Espurgos de Navios", description: "Limpeza especializada de navios, embarcações e contentores marítimos." },
-    { icon: Warehouse, name: "Espurgos de Silos", description: "Limpeza profissional de silos e armazéns de cereais, garantindo condições sanitárias adequadas." },
-    { icon: Sprout, name: "Espalate", description: "Limpeza de espaços agrícolas e de armazenamento de produtos." },
   ]
 };
 
