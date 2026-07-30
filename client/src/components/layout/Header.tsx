@@ -70,6 +70,7 @@ export default function Header() {
         { icon: Info, text: 'Quem\nsomos', href: '/about' },
         { icon: Globe, text: 'Nossa\nhistória', href: '/about/history' },
         { icon: Target, text: 'Carreiras', href: '/about/careers' },
+        { icon: ShieldCheck, text: 'Política de\nGestão', href: '/about/management-policy' },
       ]
     },
     {

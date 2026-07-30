@@ -25,6 +25,7 @@ const BlogPost = lazy(() => import("@/pages/blog/BlogPost"));
 const About = lazy(() => import("@/pages/about/About"));
 const History = lazy(() => import("@/pages/about/History"));
 const Careers = lazy(() => import("@/pages/about/Careers"));
+const ManagementPolicy = lazy(() => import("@/pages/about/ManagementPolicy"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ScrollToHash() {
@@ -103,6 +104,7 @@ function Router() {
         <Route path="/about" component={About} />
         <Route path="/about/history" component={History} />
         <Route path="/about/careers" component={Careers} />
+        <Route path="/about/management-policy" component={ManagementPolicy} />
         <Route path="/blog" component={BlogList} />
         <Route path="/blog/ultimas-noticias" component={BlogLatestNews} />
         <Route path="/blog/dicas-prevencao" component={BlogPreventionTips} />
