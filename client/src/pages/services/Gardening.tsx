@@ -39,9 +39,6 @@ const data: ServicePageData = {
     { icon: Utensils, name: "Restaurante", description: "Jardins e esplanadas de restaurantes que proporcionam ambientes agradáveis para os clientes." },
     { icon: Building2, name: "Empresas", description: "Manutenção de jardins e áreas verdes em instalações empresariais de todos os sectores." },
     { icon: Building, name: "Condomínio", description: "Manutenção de jardins e áreas verdes em condomínios residenciais e comerciais." },
-    { icon: Ship, name: "Espurgos de Navios", description: "Manutenção e limpeza de áreas verdes e exteriores em instalações portuárias e navais." },
-    { icon: Warehouse, name: "Espurgos de Silos", description: "Limpeza e manutenção de áreas exteriores em silos e armazéns." },
-    { icon: Sprout, name: "Espalate", description: "Serviços de jardinagem e manutenção de espaços agrícolas e de armazenamento." },
   ]
 };
 
