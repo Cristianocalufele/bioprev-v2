@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Hand,
   MapPin,
+  Package,
   Search,
   Shield,
   SprayCan,
@@ -167,35 +168,20 @@ export default function Loja() {
         <section className="relative overflow-hidden border-b border-[#e4e9ec] bg-[#f4f7f9]">
           <div className="absolute inset-y-0 right-0 hidden w-[38%] bg-[#e7f1f6] md:block" aria-hidden="true" />
 
-          <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:py-[4.5rem]">
-            <nav aria-label="Trilho de navegação" className="mb-7 flex items-center gap-2 text-sm text-[#64737d]">
+          <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:py-9">
+            <nav aria-label="Trilho de navegação" className="mb-5 flex items-center gap-2 text-sm text-[#64737d]">
               <Link href="/" className="transition-colors hover:text-[#007cc3]">Início</Link>
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
               <span className="font-semibold text-[#001d3d]" aria-current="page">Loja</span>
             </nav>
 
-            <div className="grid items-center gap-9 md:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] md:gap-12">
-              <div className="max-w-2xl">
-                <div className="mb-4 flex items-center gap-3">
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
                   <span className="h-[3px] w-10 bg-[#f2c92f]" />
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007cc3]">Bioprev Angola</p>
-                </div>
-                <h1 className="max-w-xl text-[2.35rem] font-semibold leading-[1.08] tracking-[-0.035em] text-[#001d3d] sm:text-5xl md:text-[3.5rem]">
-                  Artigos para cuidar dos seus espaços.
-                </h1>
-                <p className="mt-5 max-w-xl text-base leading-7 text-[#53636e] sm:text-lg">
-                  Explore uma selecção inicial de artigos de apoio à monitorização, limpeza e protecção. Consulte-nos para confirmar o que está disponível.
-                </p>
-                <a
-                  href="#artigos"
-                  className="mt-7 inline-flex min-h-12 items-center gap-3 bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
-                >
-                  Explorar artigos
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </a>
               </div>
 
-              <div className="w-full md:justify-self-end">
+              <div className="w-full">
                 <label htmlFor="product-search" className="mb-3 block text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">
                   Pesquisar no catálogo
                 </label>
