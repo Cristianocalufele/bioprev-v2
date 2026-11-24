@@ -69,3 +69,8 @@ Os setores são definidos no campo `sectors` do `ServicePageData` no `ServicePag
 
 ## Total de Páginas: 19
 Home, Contact, Locations, About×3, Services×7, Blog×2, NationalAccounts×3, 404
+
+## Executar no Replit
+- O workflow **Start application** inicia o site em modo de desenvolvimento na porta 5000.
+- Para iniciar manualmente, execute `npm run dev` na raiz do projecto.
+- O preview do Replit abre a página inicial; os caminhos internos podem ser visitados directamente no mesmo preview.
