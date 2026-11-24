@@ -9,7 +9,6 @@ import {
   ClipboardList,
   Hand,
   MapPin,
-  Package,
   Search,
   Shield,
   SprayCan,
@@ -167,13 +166,6 @@ export default function Loja() {
       <main id="main-content" className="flex-grow">
         <section className="relative overflow-hidden border-b border-[#e4e9ec] bg-[#f4f7f9]">
           <div className="absolute inset-y-0 right-0 hidden w-[38%] bg-[#e7f1f6] md:block" aria-hidden="true" />
-          <div className="absolute right-[7%] top-1/2 hidden h-56 w-56 -translate-y-1/2 items-center justify-center border border-[#c8dce8] md:flex" aria-hidden="true">
-            <div className="flex h-40 w-40 items-center justify-center border border-[#b4d1e0] bg-white/70">
-              <Package className="h-20 w-20 text-[#007cc3]" strokeWidth={1} />
-            </div>
-            <span className="absolute -bottom-3 right-8 h-6 w-16 bg-[#f2c92f]" />
-            <span className="absolute -left-3 top-8 h-16 w-6 bg-[#007cc3]" />
-          </div>
 
           <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:py-[4.5rem]">
             <nav aria-label="Trilho de navegação" className="mb-7 flex items-center gap-2 text-sm text-[#64737d]">
@@ -182,49 +174,40 @@ export default function Loja() {
               <span className="font-semibold text-[#001d3d]" aria-current="page">Loja</span>
             </nav>
 
-            <div className="max-w-2xl">
-              <div className="mb-4 flex items-center gap-3">
-                <span className="h-[3px] w-10 bg-[#f2c92f]" />
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007cc3]">Bioprev Angola</p>
-              </div>
-              <h1 className="max-w-xl text-[2.35rem] font-semibold leading-[1.08] tracking-[-0.035em] text-[#001d3d] sm:text-5xl md:text-[3.5rem]">
-                Artigos para cuidar dos seus espaços.
-              </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-[#53636e] sm:text-lg">
-                Explore uma selecção inicial de artigos de apoio à monitorização, limpeza e protecção. Consulte-nos para confirmar o que está disponível.
-              </p>
-              <a
-                href="#artigos"
-                className="mt-7 inline-flex min-h-12 items-center gap-3 bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
-              >
-                Explorar artigos
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <section id="artigos" className="scroll-mt-6 py-10 sm:py-14">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mb-7 flex flex-col gap-5 md:mb-9 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">Catálogo de referência</p>
-                <h2 className="text-2xl font-semibold tracking-tight text-[#001d3d] sm:text-3xl">Artigos em destaque</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64737d]">
-                  Estes exemplos ajudam a iniciar a conversa. Preço, disponibilidade e entrega são confirmados pela nossa equipa.
+            <div className="grid items-center gap-9 md:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] md:gap-12">
+              <div className="max-w-2xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="h-[3px] w-10 bg-[#f2c92f]" />
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007cc3]">Bioprev Angola</p>
+                </div>
+                <h1 className="max-w-xl text-[2.35rem] font-semibold leading-[1.08] tracking-[-0.035em] text-[#001d3d] sm:text-5xl md:text-[3.5rem]">
+                  Artigos para cuidar dos seus espaços.
+                </h1>
+                <p className="mt-5 max-w-xl text-base leading-7 text-[#53636e] sm:text-lg">
+                  Explore uma selecção inicial de artigos de apoio à monitorização, limpeza e protecção. Consulte-nos para confirmar o que está disponível.
                 </p>
+                <a
+                  href="#artigos"
+                  className="mt-7 inline-flex min-h-12 items-center gap-3 bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
+                >
+                  Explorar artigos
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
               </div>
-              <div className="w-full md:max-w-[300px]">
-                <label htmlFor="product-search" className="sr-only">Pesquisar artigos</label>
+
+              <div className="w-full md:justify-self-end">
+                <label htmlFor="product-search" className="mb-3 block text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">
+                  Pesquisar no catálogo
+                </label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71808a]" aria-hidden="true" />
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#71808a]" aria-hidden="true" />
                   <input
                     id="product-search"
                     type="search"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Pesquisar artigos"
-                    className="min-h-12 w-full border border-[#d6dfe4] bg-white pl-11 pr-10 text-sm text-[#001d3d] outline-none transition-colors placeholder:text-[#839099] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15"
+                    placeholder="Nome do artigo ou categoria"
+                    className="min-h-14 w-full border border-[#c8d2da] bg-white pl-12 pr-12 text-sm text-[#001d3d] shadow-sm outline-none transition-colors placeholder:text-[#839099] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15"
                   />
                   {searchTerm && (
                     <button
@@ -237,6 +220,21 @@ export default function Loja() {
                     </button>
                   )}
                 </div>
+                <p className="mt-3 text-sm text-[#64737d]">Pesquise por nome ou categoria do artigo.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="artigos" className="scroll-mt-6 py-10 sm:py-14">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="mb-7 md:mb-9">
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">Catálogo de referência</p>
+                <h2 className="text-2xl font-semibold tracking-tight text-[#001d3d] sm:text-3xl">Artigos em destaque</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64737d]">
+                  Estes exemplos ajudam a iniciar a conversa. Preço, disponibilidade e entrega são confirmados pela nossa equipa.
+                </p>
               </div>
             </div>
 
