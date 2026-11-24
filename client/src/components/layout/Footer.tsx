@@ -37,6 +37,7 @@ export default function Footer() {
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-[#666]">
               <Link href="/"><span className="hover:text-[#007cc3] cursor-pointer">Início</span></Link>
               <Link href="/services"><span className="hover:text-[#007cc3] cursor-pointer">Serviços</span></Link>
+              <Link href="/loja"><span className="hover:text-[#007cc3] cursor-pointer">Loja</span></Link>
               <Link href="/about"><span className="hover:text-[#007cc3] cursor-pointer">Sobre</span></Link>
               <Link href="/blog"><span className="hover:text-[#007cc3] cursor-pointer">Blog</span></Link>
               <Link href="/locations"><span className="hover:text-[#007cc3] cursor-pointer">Locais</span></Link>

@@ -60,6 +60,14 @@
     <priority>0.8</priority>
   </url>
 
+  <!-- Loja -->
+  <url>
+    <loc>https://bioprevangola.com/loja</loc>
+    <lastmod>2026-11-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
   <!-- Contacto & Locais -->
   <url>
     <loc>https://bioprevangola.com/contact</loc>

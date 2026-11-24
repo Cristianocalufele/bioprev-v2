@@ -67,8 +67,8 @@ Os setores são definidos no campo `sectors` do `ServicePageData` no `ServicePag
 - Benguela: `+244 927 375 940` / `+244 912 289 858` — Rua do Compão
 - Huambo: `+244 912 289 858`
 
-## Total de Páginas: 19
-Home, Contact, Locations, About×3, Services×7, Blog×2, NationalAccounts×3, 404
+## Total de Páginas: 20
+Home, Contact, Locations, Loja, About×3, Services×7, Blog×2, NationalAccounts×3, 404
 
 ## Executar no Replit
 - O workflow **Start application** inicia o site em modo de desenvolvimento na porta 5000.

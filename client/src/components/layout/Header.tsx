@@ -1,4 +1,4 @@
-import { Search, MapPin, Phone, Menu, Target, Globe, Info, BookOpen, Wind, Droplets, Trash2, Trees, ShieldCheck, ChevronRight, BarChart3, Home, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout } from "lucide-react";
+import { Search, MapPin, Phone, Menu, Target, Globe, Info, BookOpen, Wind, Droplets, Trash2, Trees, ShieldCheck, ChevronRight, BarChart3, Home, Briefcase, Utensils, Building2, Building, Ship, Warehouse, Sprout, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
@@ -251,6 +251,13 @@ export default function Header() {
                           </span>
                         </Link>
                       </div>
+                      <div className="relative h-full flex items-center px-4" key="store-direct">
+                        <Link href="/loja">
+                          <span className="transition-colors tracking-wider hover:text-[#f2c92f]" data-testid="nav-store">
+                            Loja
+                          </span>
+                        </Link>
+                      </div>
                     </span>
                   );
                 }
@@ -351,6 +358,9 @@ export default function Header() {
         </div>
 
         <div className="p-6 space-y-3 border-t border-gray-100">
+          <Link href="/loja" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 text-[14px] text-[#555555] hover:text-[#007cc3]" data-testid="mobile-nav-store">
+            <ShoppingBag className="w-4 h-4" /> Loja
+          </Link>
           <Link href="/locations" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 text-[14px] text-[#555555] hover:text-[#007cc3]">
             <MapPin className="w-4 h-4" /> Locais
           </Link>

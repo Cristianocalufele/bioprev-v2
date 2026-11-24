@@ -7,6 +7,7 @@ import { lazy, Suspense, useEffect } from "react";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Contact = lazy(() => import("@/pages/Contact"));
+const Loja = lazy(() => import("@/pages/loja/Loja"));
 const Locations = lazy(() => import("@/pages/Locations"));
 const AllNationalAccounts = lazy(() => import("@/pages/national-accounts/AllNationalAccounts"));
 const NationalOverview = lazy(() => import("@/pages/national-accounts/Overview"));
@@ -89,6 +90,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/contact" component={Contact} />
+        <Route path="/loja" component={Loja} />
         <Route path="/locations" component={Locations} />
         <Route path="/national-accounts" component={AllNationalAccounts} />
         <Route path="/national-accounts/overview" component={NationalOverview} />
