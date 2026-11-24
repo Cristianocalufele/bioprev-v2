@@ -360,8 +360,8 @@ export default function Loja() {
         }}
       >
         <SheetContent
-          side="left"
-          className="w-full max-w-[520px] overflow-y-auto border-r-4 border-r-[#f2c92f] bg-white p-0 sm:max-w-[520px]"
+          side="right"
+          className="w-full max-w-[520px] overflow-y-auto border-l-4 border-l-[#f2c92f] bg-white p-0 sm:max-w-[520px]"
           aria-describedby="product-panel-description"
         >
           {selectedProduct && (
