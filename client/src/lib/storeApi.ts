@@ -1,8 +1,29 @@
-import type { StoreCatalog } from "@shared/store";
+import type { StoreCatalog, StoreOrder } from "@shared/store";
 
 export type AdminAccess = { isAdmin: true; email: string };
-export type StoreAdminConfig = { tursoConfigured: boolean; cloudinaryConfigured: boolean };
+export type StoreAdminConfig = {
+  tursoConfigured: boolean;
+  cloudinaryConfigured: boolean;
+  secretPasscodeConfigured: boolean;
+  authMode: "passcode";
+};
+export type AdminAuthStatus = {
+  mode: "passcode";
+  configured: boolean;
+  needsSetup: boolean;
+  usingSecretEnv: boolean;
+};
 export type UploadedProductImage = { publicId: string; imageUrl: string };
+
+let inMemoryAdminToken: string | null = null;
+
+export function setAdminToken(token: string | null) {
+  inMemoryAdminToken = token;
+}
+
+export function getAdminToken(): string | null {
+  return inMemoryAdminToken;
+}
 
 export class StoreApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly code?: string) {
@@ -24,10 +45,16 @@ async function responseJson<T>(response: Response): Promise<T> {
 }
 
 export async function storeApi<T>(url: string, init?: RequestInit): Promise<T> {
+  const authHeaders: Record<string, string> = {};
+  if (inMemoryAdminToken && url.startsWith("/api/admin")) {
+    authHeaders.Authorization = `Bearer ${inMemoryAdminToken}`;
+  }
+
   const response = await fetch(url, {
     ...init,
     credentials: "include",
     headers: {
+      ...authHeaders,
       ...(init?.body && !(init.body instanceof FormData) && !(init.body instanceof Blob)
         ? { "Content-Type": "application/json" }
         : {}),
@@ -42,6 +69,21 @@ export async function publicStoreCatalog(): Promise<StoreCatalog> {
   return storeApi<StoreCatalog>("/api/store/catalog");
 }
 
+export async function submitStoreOrder(payload: {
+  productId: string;
+  quantity: number;
+  customerName: string;
+  telephone: string;
+  address: string;
+  city: string;
+  deliveryNotes: string;
+}): Promise<{ order: StoreOrder }> {
+  return storeApi<{ order: StoreOrder }>("/api/store/orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function uploadProductImage(file: File): Promise<UploadedProductImage> {
   if (file.size > 5 * 1024 * 1024) {
     throw new StoreApiError("A imagem não pode exceder 5 MB.", 413, "IMAGE_SIZE_LIMIT");
@@ -49,10 +91,14 @@ export async function uploadProductImage(file: File): Promise<UploadedProductIma
   if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type)) {
     throw new StoreApiError("Use uma imagem JPG, PNG, WebP ou AVIF.", 415, "INVALID_IMAGE_FORMAT");
   }
+  const headers: Record<string, string> = { "Content-Type": file.type };
+  if (inMemoryAdminToken) {
+    headers.Authorization = `Bearer ${inMemoryAdminToken}`;
+  }
   const response = await fetch("/api/admin/media", {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": file.type },
+    headers,
     body: file,
   });
   return responseJson<UploadedProductImage>(response);

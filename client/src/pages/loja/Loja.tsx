@@ -1,14 +1,16 @@
-import { useMemo, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   ArrowUpRight,
   Brush,
   Check,
+  CheckCircle2,
   ChevronRight,
   CircleHelp,
   ClipboardList,
   Hand,
+  LoaderCircle,
   MapPin,
   Package,
   Search,
@@ -29,8 +31,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { StoreProduct } from "@shared/store";
-import { publicStoreCatalog, StoreApiError } from "@/lib/storeApi";
+import type { StoreOrder, StoreProduct } from "@shared/store";
+import { publicStoreCatalog, StoreApiError, submitStoreOrder } from "@/lib/storeApi";
 
 const inputClassName =
   "mt-2 min-h-12 w-full border border-[#c8d2da] bg-white px-4 py-3 text-[15px] text-[#001d3d] outline-none transition-colors placeholder:text-[#8a969e] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15";
@@ -43,6 +45,8 @@ function productIcon(product: StoreProduct): LucideIcon {
 }
 
 export default function Loja() {
+  const queryClient = useQueryClient();
+  const whatsappLinkRef = useRef<HTMLAnchorElement | null>(null);
   const catalogQuery = useQuery({
     queryKey: ["store", "catalog"],
     queryFn: publicStoreCatalog,
@@ -53,11 +57,15 @@ export default function Loja() {
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
+  const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [telephone, setTelephone] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [orderError, setOrderError] = useState("");
+  const [submittedOrder, setSubmittedOrder] = useState<{ order: StoreOrder; whatsappUrl: string } | null>(null);
 
   const visibleProducts = useMemo(() => {
     const normalisedSearch = searchTerm.trim().toLocaleLowerCase("pt");
@@ -72,34 +80,68 @@ export default function Loja() {
 
   const openProduct = (product: StoreProduct) => {
     setSelectedProduct(product);
+    setCustomerName("");
     setQuantity("1");
     setTelephone("");
     setAddress("");
     setCity("");
     setDeliveryNotes("");
+    setOrderError("");
+    setSubmittedOrder(null);
   };
 
-  const handleRequest = (event: FormEvent<HTMLFormElement>) => {
+  const handleRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedProduct) return;
+    if (!selectedProduct || submittingOrder) return;
 
-    const message = [
-      "Olá, Bioprev. Gostaria de consultar este artigo:",
-      "",
-      `Artigo: ${selectedProduct.name}`,
-      `Quantidade: ${quantity}`,
-      `Telefone para contacto: ${telephone.trim()}`,
-      `Morada de entrega: ${address.trim()}`,
-      city.trim() ? `Cidade: ${city.trim()}` : "",
-      deliveryNotes.trim() ? `Notas de entrega: ${deliveryNotes.trim()}` : "",
-      "",
-      "Por favor, confirmem a disponibilidade, o preço e as condições de entrega.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const parsedQuantity = Math.max(1, parseInt(quantity, 10) || 1);
+    setSubmittingOrder(true);
+    setOrderError("");
 
-    const whatsappUrl = `https://wa.me/244928737888?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    try {
+      const { order } = await submitStoreOrder({
+        productId: selectedProduct.id,
+        quantity: parsedQuantity,
+        customerName: customerName.trim(),
+        telephone: telephone.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        deliveryNotes: deliveryNotes.trim(),
+      });
+
+      const message = [
+        "Olá, Bioprev. Gostaria de confirmar este pedido:",
+        "",
+        `Referência: ${order.reference}`,
+        `Artigo: ${order.productName}`,
+        `Quantidade: ${order.quantity}`,
+        order.customerName ? `Nome / Empresa: ${order.customerName}` : "",
+        `Telefone para contacto: ${order.telephone}`,
+        `Morada de entrega: ${order.address}`,
+        order.city ? `Cidade: ${order.city}` : "",
+        order.deliveryNotes ? `Notas de entrega: ${order.deliveryNotes}` : "",
+        "",
+        "Por favor, confirmem a disponibilidade, o preço e as condições de entrega.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const whatsappUrl = `https://wa.me/244928737888?text=${encodeURIComponent(message)}`;
+      setSubmittedOrder({ order, whatsappUrl });
+      void queryClient.invalidateQueries({ queryKey: ["store-admin", "orders"] });
+
+      setTimeout(() => {
+        whatsappLinkRef.current?.click();
+      }, 60);
+    } catch (error) {
+      setOrderError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível registar o pedido. Tente novamente.",
+      );
+    } finally {
+      setSubmittingOrder(false);
+    }
   };
 
   return (
@@ -129,8 +171,8 @@ export default function Loja() {
 
             <div className="space-y-5">
               <div className="flex items-center gap-3">
-                  <span className="h-[3px] w-10 bg-[#f2c92f]" />
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007cc3]">Bioprev Angola</p>
+                <span className="h-[3px] w-10 bg-[#f2c92f]" />
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007cc3]">Bioprev Angola</p>
               </div>
 
               <div className="w-full">
@@ -279,7 +321,7 @@ export default function Loja() {
             <div className="mt-7 flex items-start gap-3 border-l-4 border-[#f2c92f] bg-[#f4f7f9] px-4 py-4 sm:px-5">
               <CircleHelp className="mt-0.5 h-5 w-5 shrink-0 text-[#007cc3]" strokeWidth={1.8} aria-hidden="true" />
               <p className="text-sm leading-6 text-[#4f5f69]">
-                <span className="font-bold text-[#001d3d]">Antes de pedir:</span> o catálogo é apenas uma selecção de referência. A equipa confirma disponibilidade, preço e condições de entrega pelo WhatsApp.
+                <span className="font-bold text-[#001d3d]">Antes de pedir:</span> o catálogo é apenas uma selecção de referência. Ao enviar o formulário, o pedido fica registado na nossa equipa e segue para confirmação no WhatsApp.
               </p>
             </div>
           </div>
@@ -316,7 +358,11 @@ export default function Loja() {
       <Sheet
         open={Boolean(selectedProduct)}
         onOpenChange={(open) => {
-          if (!open) setSelectedProduct(null);
+          if (!open) {
+            setSelectedProduct(null);
+            setSubmittedOrder(null);
+            setOrderError("");
+          }
         }}
       >
         <SheetContent
@@ -369,112 +415,190 @@ export default function Loja() {
                   </div>
                 </div>
 
-                <div className="mb-5 mt-7">
-                  <h3 className="text-lg font-semibold text-[#001d3d]">Consultar este artigo</h3>
-                  <p className="mt-1 text-sm leading-6 text-[#64737d]">
-                    Indique os seus dados para preparar uma mensagem à equipa.
-                  </p>
-                </div>
+                {submittedOrder ? (
+                  <div className="mt-7 space-y-5 border border-[#cce4d7] border-t-4 border-t-[#276445] bg-[#f1f8f4] p-5">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#276445]" aria-hidden="true" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-[#001d3d]">Pedido registado</h3>
+                        <p className="mt-1 text-sm leading-6 text-[#344754]">
+                          O seu pedido ficou registado na nossa loja com a referência{" "}
+                          <strong className="font-bold text-[#001d3d]">{submittedOrder.order.reference}</strong>.
+                        </p>
+                      </div>
+                    </div>
 
-                <form onSubmit={handleRequest} className="space-y-5">
-                  <div>
-                    <label htmlFor="request-quantity" className="text-sm font-semibold text-[#263b49]">
-                      Quantidade <span className="text-[#007cc3]">*</span>
-                    </label>
-                    <input
-                      id="request-quantity"
-                      name="quantity"
-                      type="number"
-                      min="1"
-                      step="1"
-                      required
-                      value={quantity}
-                      onChange={(event) => setQuantity(event.target.value)}
-                      className={inputClassName}
-                    />
+                    <div className="space-y-1.5 border-t border-[#d6e9df] pt-4 text-sm text-[#344754]">
+                      <p><strong>Artigo:</strong> {submittedOrder.order.productName} (x{submittedOrder.order.quantity})</p>
+                      {submittedOrder.order.customerName && (
+                        <p><strong>Nome / Empresa:</strong> {submittedOrder.order.customerName}</p>
+                      )}
+                      <p><strong>Telefone:</strong> {submittedOrder.order.telephone}</p>
+                      <p><strong>Morada:</strong> {submittedOrder.order.address}</p>
+                      {submittedOrder.order.city && <p><strong>Cidade:</strong> {submittedOrder.order.city}</p>}
+                    </div>
+
+                    <a
+                      ref={whatsappLinkRef}
+                      href={submittedOrder.whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-h-12 w-full items-center justify-center gap-2 bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8]"
+                    >
+                      Enviar mensagem no WhatsApp
+                      <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setSubmittedOrder(null)}
+                      className="flex min-h-11 w-full items-center justify-center border border-[#cbd6dc] bg-white px-4 text-sm font-semibold text-[#344754] transition-colors hover:border-[#007cc3] hover:text-[#007cc3]"
+                    >
+                      Fazer outro pedido deste artigo
+                    </button>
                   </div>
-
-                  <div>
-                    <label htmlFor="request-telephone" className="text-sm font-semibold text-[#263b49]">
-                      Telefone para contacto <span className="text-[#007cc3]">*</span>
-                    </label>
-                    <input
-                      id="request-telephone"
-                      name="telephone"
-                      type="tel"
-                      autoComplete="tel"
-                      required
-                      value={telephone}
-                      onChange={(event) => setTelephone(event.target.value)}
-                      placeholder="+244 9XX XXX XXX"
-                      className={inputClassName}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="request-address" className="text-sm font-semibold text-[#263b49]">
-                      Morada completa de entrega <span className="text-[#007cc3]">*</span>
-                    </label>
-                    <textarea
-                      id="request-address"
-                      name="address"
-                      autoComplete="street-address"
-                      required
-                      minLength={8}
-                      rows={3}
-                      value={address}
-                      onChange={(event) => setAddress(event.target.value)}
-                      placeholder="Rua, número, bairro e ponto de referência"
-                      className={`${inputClassName} resize-y`}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="request-city" className="text-sm font-semibold text-[#263b49]">Cidade (opcional)</label>
-                    <input
-                      id="request-city"
-                      name="city"
-                      autoComplete="address-level2"
-                      value={city}
-                      onChange={(event) => setCity(event.target.value)}
-                      placeholder="Ex.: Luanda"
-                      className={inputClassName}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="request-notes" className="text-sm font-semibold text-[#263b49]">Notas de entrega (opcional)</label>
-                    <textarea
-                      id="request-notes"
-                      name="deliveryNotes"
-                      rows={2}
-                      value={deliveryNotes}
-                      onChange={(event) => setDeliveryNotes(event.target.value)}
-                      placeholder="Informação adicional para localizar a morada"
-                      className={`${inputClassName} resize-y`}
-                    />
-                  </div>
-
-                  <div className="border border-[#e1e8ec] bg-[#f7f9fa] p-4">
-                    <div className="flex gap-3">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#007cc3]" aria-hidden="true" />
-                      <p className="text-xs leading-5 text-[#5c6c76]">
-                        Disponibilidade, preço e entrega são confirmados pela equipa. Os dados indicados só serão incluídos numa mensagem de WhatsApp quando escolher continuar.
+                ) : (
+                  <>
+                    <div className="mb-5 mt-7">
+                      <h3 className="text-lg font-semibold text-[#001d3d]">Consultar este artigo</h3>
+                      <p className="mt-1 text-sm leading-6 text-[#64737d]">
+                        Indique os seus dados para registar o pedido e abrir a mensagem no WhatsApp.
                       </p>
                     </div>
-                  </div>
 
-                  <button
-                    type="submit"
-                    className="flex min-h-12 w-full items-center justify-center gap-2 bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
-                  >
-                    Continuar pelo WhatsApp
-                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <p className="pb-2 text-center text-xs leading-5 text-[#74828b]">
-                    O WhatsApp abre com a mensagem preenchida para rever e enviar.
-                  </p>
-                </form>
+                    <form onSubmit={handleRequest} className="space-y-5">
+                      <div>
+                        <label htmlFor="request-customer-name" className="text-sm font-semibold text-[#263b49]">
+                          Nome ou empresa (opcional)
+                        </label>
+                        <input
+                          id="request-customer-name"
+                          name="customerName"
+                          type="text"
+                          autoComplete="name"
+                          maxLength={120}
+                          value={customerName}
+                          onChange={(event) => setCustomerName(event.target.value)}
+                          placeholder="Ex.: Maria Silva ou Empresa Lda."
+                          className={inputClassName}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="request-quantity" className="text-sm font-semibold text-[#263b49]">
+                          Quantidade <span className="text-[#007cc3]">*</span>
+                        </label>
+                        <input
+                          id="request-quantity"
+                          name="quantity"
+                          type="number"
+                          min="1"
+                          step="1"
+                          required
+                          value={quantity}
+                          onChange={(event) => setQuantity(event.target.value)}
+                          className={inputClassName}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="request-telephone" className="text-sm font-semibold text-[#263b49]">
+                          Telefone para contacto <span className="text-[#007cc3]">*</span>
+                        </label>
+                        <input
+                          id="request-telephone"
+                          name="telephone"
+                          type="tel"
+                          autoComplete="tel"
+                          required
+                          value={telephone}
+                          onChange={(event) => setTelephone(event.target.value)}
+                          placeholder="+244 9XX XXX XXX"
+                          className={inputClassName}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="request-address" className="text-sm font-semibold text-[#263b49]">
+                          Morada completa de entrega <span className="text-[#007cc3]">*</span>
+                        </label>
+                        <textarea
+                          id="request-address"
+                          name="address"
+                          autoComplete="street-address"
+                          required
+                          minLength={8}
+                          rows={3}
+                          value={address}
+                          onChange={(event) => setAddress(event.target.value)}
+                          placeholder="Rua, número, bairro e ponto de referência"
+                          className={`${inputClassName} resize-y`}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="request-city" className="text-sm font-semibold text-[#263b49]">Cidade (opcional)</label>
+                        <input
+                          id="request-city"
+                          name="city"
+                          autoComplete="address-level2"
+                          value={city}
+                          onChange={(event) => setCity(event.target.value)}
+                          placeholder="Ex.: Luanda"
+                          className={inputClassName}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="request-notes" className="text-sm font-semibold text-[#263b49]">Notas de entrega (opcional)</label>
+                        <textarea
+                          id="request-notes"
+                          name="deliveryNotes"
+                          rows={2}
+                          value={deliveryNotes}
+                          onChange={(event) => setDeliveryNotes(event.target.value)}
+                          placeholder="Informação adicional para localizar a morada"
+                          className={`${inputClassName} resize-y`}
+                        />
+                      </div>
+
+                      {orderError && (
+                        <p role="alert" className="border border-[#f0d3cc] bg-[#fff7f5] px-3 py-2 text-sm text-[#914533]">
+                          {orderError}
+                        </p>
+                      )}
+
+                      <div className="border border-[#e1e8ec] bg-[#f7f9fa] p-4">
+                        <div className="flex gap-3">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#007cc3]" aria-hidden="true" />
+                          <p className="text-xs leading-5 text-[#5c6c76]">
+                            O pedido é guardado para acompanhamento na loja e abre o WhatsApp com os dados preenchidos para confirmar preço, disponibilidade e entrega.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={submittingOrder}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
+                      >
+                        {submittingOrder ? (
+                          <>
+                            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            A registar pedido…
+                          </>
+                        ) : (
+                          <>
+                            Continuar pelo WhatsApp
+                            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                          </>
+                        )}
+                      </button>
+                      <p className="pb-2 text-center text-xs leading-5 text-[#74828b]">
+                        O WhatsApp abre com a referência e os detalhes do pedido para rever e enviar.
+                      </p>
+                    </form>
+                  </>
+                )}
               </div>
             </div>
           )}

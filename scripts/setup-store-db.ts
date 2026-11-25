@@ -53,6 +53,29 @@ async function setup() {
     );
     CREATE INDEX IF NOT EXISTS store_products_category_idx ON store_products(category_id);
     CREATE INDEX IF NOT EXISTS store_products_active_order_idx ON store_products(is_active, sort_order);
+    CREATE TABLE IF NOT EXISTS store_orders (
+      id TEXT PRIMARY KEY,
+      reference TEXT NOT NULL UNIQUE,
+      product_id TEXT REFERENCES store_products(id) ON UPDATE CASCADE ON DELETE SET NULL,
+      product_name TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 1),
+      customer_name TEXT NOT NULL DEFAULT '',
+      telephone TEXT NOT NULL,
+      address TEXT NOT NULL,
+      city TEXT NOT NULL DEFAULT '',
+      delivery_notes TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'novo',
+      source TEXT NOT NULL DEFAULT 'loja_whatsapp',
+      admin_notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS store_orders_status_created_idx ON store_orders(status, created_at);
+    CREATE TABLE IF NOT EXISTS store_admin_auth (
+      key TEXT PRIMARY KEY,
+      passcode_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS store_setup_state (
       key TEXT PRIMARY KEY,
       completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

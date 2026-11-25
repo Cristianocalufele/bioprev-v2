@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertNewsletterSchema } from "@shared/schema";
+import { insertNewsletterSchema } from "../shared/schema";
 import { z } from "zod";
 import { registerStoreRoutes } from "./storeRoutes";
 
