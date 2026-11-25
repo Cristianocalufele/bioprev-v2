@@ -50,9 +50,34 @@ export async function verifyCloudinaryHealth(): Promise<{
     return {
       configured: true,
       connected: false,
-      error: error instanceof Error ? error.message : "Não foi possível validar a ligação à Cloudinary.",
+      error: cloudinaryHealthErrorMessage(error),
     };
   }
+}
+
+function cloudinaryHealthErrorMessage(error: unknown): string {
+  const fallback = "Não foi possível validar a ligação à Cloudinary.";
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (typeof error !== "object" || error === null) return fallback;
+
+  const details = error as Record<string, unknown>;
+  const nestedError =
+    typeof details.error === "object" && details.error !== null
+      ? (details.error as Record<string, unknown>)
+      : undefined;
+  const message =
+    (typeof details.message === "string" && details.message.trim() ? details.message : undefined) ??
+    (typeof details.error === "string" && details.error.trim() ? details.error : undefined) ??
+    (typeof nestedError?.message === "string" && nestedError.message.trim()
+      ? nestedError.message
+      : undefined);
+  if (!message) return fallback;
+
+  const status = details.http_code ?? details.statusCode ?? details.status;
+  return typeof status === "number" || (typeof status === "string" && status.trim())
+    ? `Cloudinary (${status}): ${message}`
+    : message;
 }
 
 function hasValidImageSignature(buffer: Buffer, mimeType: string): boolean {

@@ -56,13 +56,14 @@ Este guia descreve o que falta para activar a loja de Bioprev depois de o códig
 
 1. Crie ou seleccione uma conta e um ambiente de produto na Cloudinary.
 2. No painel da Cloudinary, obtenha o nome do ambiente, a chave da API e o segredo da API.
-3. Adicione estes valores em **Secrets** no Replit:
+3. Adicione estes valores em **Settings → Environment Variables** no projecto Vercel e seleccione o ambiente usado pelo site (por exemplo, **Production**):
    - `CLOUDINARY_CLOUD_NAME`
    - `CLOUDINARY_API_KEY`
    - `CLOUDINARY_API_SECRET`
 4. O segredo da API permanece exclusivamente no servidor. Não o use em variáveis `VITE_*` nem no código do navegador.
-5. No painel, edite ou adicione um artigo e seleccione uma imagem. São aceites JPG, PNG, WebP e AVIF até 5 MB. O servidor verifica o tipo e o conteúdo, guarda a imagem na pasta `bioprev/products` e grava apenas o identificador no Turso.
-6. Ao substituir ou apagar um artigo, o sistema tenta remover a imagem anterior da Cloudinary. Se o fornecedor estiver temporariamente indisponível, o artigo é guardado/apagado e o painel mostra um aviso para permitir a limpeza posterior.
+5. Depois de adicionar ou alterar variáveis, crie um novo deployment na Vercel: os valores só ficam disponíveis nos deployments seguintes. No painel, clique em **Verificar ligações**.
+6. Edite ou adicione um artigo e seleccione uma imagem. São aceites JPG, PNG, WebP e AVIF até 5 MB. O servidor verifica o tipo e o conteúdo, guarda a imagem na pasta `bioprev/products` e grava apenas o identificador no Turso.
+7. Ao substituir ou apagar um artigo, o sistema tenta remover a imagem anterior da Cloudinary. Se o fornecedor estiver temporariamente indisponível, o artigo é guardado/apagado e o painel mostra um aviso para permitir a limpeza posterior.
 
 ## 4. Primeiro acesso de administrador
 
@@ -76,7 +77,7 @@ Este guia descreve o que falta para activar a loja de Bioprev depois de o códig
 
 ## 5. Separar desenvolvimento e produção
 
-O desenvolvimento e a publicação podem usar conjuntos de Secrets diferentes. Defina em cada ambiente o URL e token do Turso correspondentes e execute `npm run db:store:setup` no ambiente da base que pretende inicializar. Faça o mesmo para as três chaves da Cloudinary e para a lista de emails administradores.
+O desenvolvimento e a publicação podem usar conjuntos de variáveis diferentes na Vercel. Defina em cada ambiente o URL e token do Turso correspondentes e execute `npm run db:store:setup` no ambiente da base que pretende inicializar. Faça o mesmo para as três chaves da Cloudinary e para a lista de emails administradores; crie um novo deployment sempre que alterar variáveis.
 
 Para impedir que dados de teste apareçam na loja publicada, use bases Turso separadas para desenvolvimento e produção. O script é idempotente, mas não copia dados entre ambientes.
 

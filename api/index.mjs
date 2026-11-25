@@ -806,9 +806,21 @@ async function verifyCloudinaryHealth() {
     return {
       configured: true,
       connected: false,
-      error: error instanceof Error ? error.message : "N\xE3o foi poss\xEDvel validar a liga\xE7\xE3o \xE0 Cloudinary."
+      error: cloudinaryHealthErrorMessage(error)
     };
   }
+}
+function cloudinaryHealthErrorMessage(error) {
+  const fallback = "N\xE3o foi poss\xEDvel validar a liga\xE7\xE3o \xE0 Cloudinary.";
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (typeof error !== "object" || error === null) return fallback;
+  const details = error;
+  const nestedError = typeof details.error === "object" && details.error !== null ? details.error : void 0;
+  const message = (typeof details.message === "string" && details.message.trim() ? details.message : void 0) ?? (typeof details.error === "string" && details.error.trim() ? details.error : void 0) ?? (typeof nestedError?.message === "string" && nestedError.message.trim() ? nestedError.message : void 0);
+  if (!message) return fallback;
+  const status = details.http_code ?? details.statusCode ?? details.status;
+  return typeof status === "number" || typeof status === "string" && status.trim() ? `Cloudinary (${status}): ${message}` : message;
 }
 function hasValidImageSignature(buffer, mimeType) {
   if (mimeType === "image/jpeg") return buffer.length >= 3 && buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255;
