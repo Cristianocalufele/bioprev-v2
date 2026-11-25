@@ -19,6 +19,38 @@ export function isStoreConfigured(): boolean {
   return Boolean(process.env.TURSO_DATABASE_URL?.trim() && process.env.TURSO_AUTH_TOKEN?.trim());
 }
 
+export async function verifyTursoHealth(): Promise<{
+  configured: boolean;
+  connected: boolean;
+  latencyMs?: number;
+  error?: string;
+}> {
+  if (!isStoreConfigured()) {
+    return {
+      configured: false,
+      connected: false,
+      error: "Defina TURSO_DATABASE_URL e TURSO_AUTH_TOKEN nas variáveis de ambiente.",
+    };
+  }
+
+  const startedAt = Date.now();
+  try {
+    const db = getStoreClient();
+    await db.execute("SELECT 1 AS ok");
+    return {
+      configured: true,
+      connected: true,
+      latencyMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      connected: false,
+      error: error instanceof Error ? error.message : "Não foi possível estabelecer ligação ao Turso.",
+    };
+  }
+}
+
 export function getStoreClient(): Client {
   if (client) return client;
 
@@ -44,13 +76,13 @@ export function getStoreClient(): Client {
   }
 }
 
-const initialCategories = [
+export const initialCategories = [
   { name: "Monitorização", slug: "monitorizacao", description: "Artigos de apoio à monitorização de espaços.", sortOrder: 10 },
   { name: "Limpeza", slug: "limpeza", description: "Equipamentos e utensílios para rotinas de limpeza.", sortOrder: 20 },
   { name: "Protecção", slug: "protecao", description: "Artigos de protecção individual e segurança.", sortOrder: 30 },
 ];
 
-const initialProducts = [
+export const initialProducts = [
   { name: "Estação de monitorização", slug: "estacao-monitorizacao", category: "monitorizacao", short: "Equipamento de apoio à observação e monitorização regular de espaços.", description: "Referência de equipamento para apoiar a observação de áreas e o acompanhamento de sinais de actividade.", sortOrder: 10 },
   { name: "Armadilha de monitorização", slug: "armadilha-monitorizacao", category: "monitorizacao", short: "Uma opção de referência para acompanhar sinais em espaços residenciais ou profissionais.", description: "As características adequadas dependem do espaço e da necessidade. Fale com a equipa para confirmar a opção disponível.", sortOrder: 20 },
   { name: "Pulverizador manual", slug: "pulverizador-manual", category: "limpeza", short: "Equipamento de apoio para tarefas de limpeza e manutenção do dia a dia.", description: "Artigo de referência. A equipa poderá esclarecer a disponibilidade e os detalhes do equipamento antes de qualquer pedido.", sortOrder: 30 },

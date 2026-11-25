@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -7,12 +7,13 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  CircleHelp,
   ClipboardList,
   Hand,
   LoaderCircle,
-  MapPin,
+  MessageCircle,
+  Minus,
   Package,
+  Plus,
   Search,
   Shield,
   SprayCan,
@@ -33,15 +34,55 @@ import {
 } from "@/components/ui/sheet";
 import type { StoreOrder, StoreProduct } from "@shared/store";
 import { publicStoreCatalog, StoreApiError, submitStoreOrder } from "@/lib/storeApi";
+import { resolveProductImage, storeHeroImage } from "@/lib/storeImages";
 
 const inputClassName =
   "mt-2 min-h-12 w-full border border-[#c8d2da] bg-white px-4 py-3 text-[15px] text-[#001d3d] outline-none transition-colors placeholder:text-[#8a969e] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15";
 
-function productIcon(product: StoreProduct): LucideIcon {
+function productIcon(product: Pick<StoreProduct, "categorySlug" | "slug">): LucideIcon {
   const category = product.categorySlug.toLocaleLowerCase("pt");
   if (category.includes("limpeza")) return product.slug.includes("pulverizador") ? SprayCan : Brush;
   if (category.includes("protec") || category.includes("prote")) return product.slug.includes("luvas") ? Hand : Shield;
   return product.slug.includes("armadilha") ? ClipboardList : Target;
+}
+
+function ProductVisual({
+  product,
+  alt,
+  className = "h-full w-full object-cover",
+}: {
+  product: Pick<StoreProduct, "slug" | "imageUrl" | "categorySlug" | "name" | "categoryName">;
+  alt: string;
+  className?: string;
+}) {
+  const src = resolveProductImage(product);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const Icon = productIcon(product);
+
+  useEffect(() => {
+    setFailedSrc(null);
+  }, [src]);
+
+  if (src && failedSrc !== src) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        referrerPolicy="no-referrer"
+        onError={() => setFailedSrc(src)}
+        className={className}
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-[#f4f7f9] to-[#e6eff5] p-6 text-center">
+      <div className="flex h-14 w-14 items-center justify-center border border-[#d2e2ec] bg-white text-[#007cc3]">
+        <Icon className="h-7 w-7" strokeWidth={1.4} aria-hidden="true" />
+      </div>
+      <span className="text-xs font-medium text-[#5d6d77]">{product.categoryName}</span>
+    </div>
+  );
 }
 
 export default function Loja() {
@@ -52,13 +93,16 @@ export default function Loja() {
     queryFn: publicStoreCatalog,
     retry: false,
   });
+
   const products = catalogQuery.data?.products ?? [];
   const categories = catalogQuery.data?.categories ?? [];
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [heroImageError, setHeroImageError] = useState(false);
+
   const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
   const [customerName, setCustomerName] = useState("");
-  const [quantity, setQuantity] = useState("1");
+  const [quantity, setQuantity] = useState(1);
   const [telephone, setTelephone] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
@@ -73,7 +117,9 @@ export default function Loja() {
       const matchesCategory = activeCategory === "Todos" || product.categoryName === activeCategory;
       const matchesSearch =
         normalisedSearch.length === 0 ||
-        `${product.name} ${product.categoryName} ${product.shortDescription}`.toLocaleLowerCase("pt").includes(normalisedSearch);
+        `${product.name} ${product.categoryName} ${product.shortDescription}`
+          .toLocaleLowerCase("pt")
+          .includes(normalisedSearch);
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, products, searchTerm]);
@@ -81,7 +127,7 @@ export default function Loja() {
   const openProduct = (product: StoreProduct) => {
     setSelectedProduct(product);
     setCustomerName("");
-    setQuantity("1");
+    setQuantity(1);
     setTelephone("");
     setAddress("");
     setCity("");
@@ -94,7 +140,7 @@ export default function Loja() {
     event.preventDefault();
     if (!selectedProduct || submittingOrder) return;
 
-    const parsedQuantity = Math.max(1, parseInt(quantity, 10) || 1);
+    const parsedQuantity = Math.max(1, Math.min(10000, Math.trunc(quantity) || 1));
     setSubmittingOrder(true);
     setOrderError("");
 
@@ -159,48 +205,91 @@ export default function Loja() {
       <Header />
 
       <main id="main-content" className="flex-grow">
-        <section className="relative overflow-hidden border-b border-[#e4e9ec] bg-[#f4f7f9]">
-          <div className="absolute inset-y-0 right-0 hidden w-[38%] bg-[#e7f1f6] md:block" aria-hidden="true" />
-
-          <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:py-9">
-            <nav aria-label="Trilho de navegação" className="mb-5 flex items-center gap-2 text-sm text-[#64737d]">
-              <Link href="/" className="transition-colors hover:text-[#007cc3]">Início</Link>
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              <span className="font-semibold text-[#001d3d]" aria-current="page">Loja</span>
+        <section className="border-b border-[#e2e8ec] bg-[#f4f7f9]">
+          <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+            <nav aria-label="Trilho de navegação" className="mb-5 flex items-center gap-2 text-xs text-[#64737d]">
+              <Link href="/" className="transition-colors hover:text-[#007cc3]">
+                Início
+              </Link>
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="font-semibold text-[#001d3d]" aria-current="page">
+                Loja
+              </span>
             </nav>
 
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="h-[3px] w-10 bg-[#f2c92f]" />
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007cc3]">Bioprev Angola</p>
+            <div className="grid items-stretch gap-8 lg:grid-cols-12">
+              <div className="flex flex-col justify-between gap-6 lg:col-span-7">
+                <div>
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="h-[3px] w-10 bg-[#f2c92f]" />
+                    <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#007cc3]">
+                      Catálogo Bioprev Angola
+                    </span>
+                  </div>
+                  <h1 className="max-w-2xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#001d3d] sm:text-4xl">
+                    Equipamentos para monitorização, limpeza e protecção
+                  </h1>
+                  <p className="mt-3 max-w-xl text-[15px] leading-6 text-[#586771]">
+                    Seleccione os artigos pretendidos, registe a entrega com referência automática e confirme preço e disponibilidade directamente com a nossa equipa pelo WhatsApp.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <label htmlFor="product-search" className="sr-only">
+                    Pesquisar artigos na loja
+                  </label>
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#71808a]"
+                      aria-hidden="true"
+                    />
+                    <input
+                      id="product-search"
+                      type="search"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Pesquisar por artigo ou categoria (ex.: pulverizador, luvas, estação…)"
+                      className="min-h-13 w-full border border-[#c8d2da] bg-white pl-12 pr-12 text-sm text-[#001d3d] outline-none transition-colors placeholder:text-[#839099] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15"
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm("")}
+                        aria-label="Limpar pesquisa"
+                        className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-[#62727c] hover:text-[#001d3d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007cc3]"
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64737d] tabular-nums">
+                    <span>{products.length} artigos de referência</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{categories.length} categorias</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Atendimento directo em Luanda, Benguela e Huambo</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="w-full">
-                <label htmlFor="product-search" className="mb-3 block text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">
-                  Pesquisar no catálogo
-                </label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#71808a]" aria-hidden="true" />
-                  <input
-                    id="product-search"
-                    type="search"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Nome do artigo ou categoria"
-                    className="min-h-14 w-full border border-[#c8d2da] bg-white pl-12 pr-12 text-sm text-[#001d3d] shadow-sm outline-none transition-colors placeholder:text-[#839099] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15"
-                  />
-                  {searchTerm && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchTerm("")}
-                      aria-label="Limpar pesquisa"
-                      className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-[#62727c] hover:text-[#001d3d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007cc3]"
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </button>
+              <div className="lg:col-span-5">
+                <div className="h-full min-h-[220px] overflow-hidden border border-[#dce4e9] border-t-4 border-t-[#f2c92f] bg-white">
+                  {!heroImageError ? (
+                    <img
+                      src={storeHeroImage}
+                      alt="Equipamentos de monitorização, limpeza e protecção individual da Bioprev Angola"
+                      referrerPolicy="no-referrer"
+                      onError={() => setHeroImageError(true)}
+                      className="h-full max-h-[320px] w-full object-cover lg:max-h-none"
+                    />
+                  ) : (
+                    <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-3 bg-[#ebf2f6] p-8 text-center">
+                      <Package className="h-10 w-10 text-[#007cc3]" strokeWidth={1.3} aria-hidden="true" />
+                      <p className="text-sm font-semibold text-[#001d3d]">Equipamentos Bioprev Angola</p>
+                    </div>
                   )}
                 </div>
-                <p className="mt-3 text-sm text-[#64737d]">Pesquise por nome ou categoria do artigo.</p>
               </div>
             </div>
           </div>
@@ -208,43 +297,76 @@ export default function Loja() {
 
         <section id="artigos" className="scroll-mt-6 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mb-7 md:mb-9">
+            <div className="mb-8 flex flex-col gap-5 border-b border-[#e5ebee] pb-6 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">Catálogo de referência</p>
-                <h2 className="text-2xl font-semibold tracking-tight text-[#001d3d] sm:text-3xl">Artigos em destaque</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64737d]">
-                  Consulte a equipa para confirmar disponibilidade, preço e condições de entrega.
+                <p className="mb-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[#007cc3]">
+                  Selecção de produtos
                 </p>
+                <h2 className="text-2xl font-semibold tracking-tight text-[#001d3d] sm:text-3xl">
+                  Catálogo disponível
+                </h2>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar artigos por categoria">
+                {["Todos", ...categories.map((category) => category.name)].map((category) => {
+                  const isActive = activeCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() => setActiveCategory(category)}
+                      className={`min-h-10 whitespace-nowrap shrink-0 border px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007cc3] ${
+                        isActive
+                          ? "border-[#001d3d] bg-[#001d3d] text-white"
+                          : "border-[#d5dfe4] bg-white text-[#4d5c66] hover:border-[#007cc3] hover:text-[#007cc3]"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="mb-7 flex flex-wrap gap-2" role="group" aria-label="Filtrar artigos por categoria">
-              {["Todos", ...categories.map((category) => category.name)].map((category) => {
-                const isActive = activeCategory === category;
-                return (
+            {catalogQuery.data && (
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-xs text-[#64737d] tabular-nums">
+                <span>
+                  A mostrar <strong className="font-semibold text-[#001d3d]">{visibleProducts.length}</strong>{" "}
+                  {visibleProducts.length === 1 ? "artigo" : "artigos"}
+                  {activeCategory !== "Todos" ? ` em ${activeCategory}` : ""}
+                  {searchTerm.trim() ? ` para “${searchTerm.trim()}”` : ""}
+                </span>
+                {(activeCategory !== "Todos" || searchTerm.trim() !== "") && (
                   <button
-                    key={category}
                     type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setActiveCategory(category)}
-                    className={`min-h-10 border px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007cc3] ${
-                      isActive
-                        ? "border-[#001d3d] bg-[#001d3d] text-white"
-                        : "border-[#d5dfe4] bg-white text-[#4d5c66] hover:border-[#007cc3] hover:text-[#007cc3]"
-                    }`}
+                    onClick={() => {
+                      setActiveCategory("Todos");
+                      setSearchTerm("");
+                    }}
+                    className="font-semibold text-[#007cc3] hover:underline"
                   >
-                    {category}
+                    Limpar filtros
                   </button>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            )}
 
             {catalogQuery.isPending ? (
-              <div className="border border-[#dfe7eb] bg-[#f7f9fa] px-5 py-12 text-center text-sm text-[#64737d]">
-                A carregar o catálogo…
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="border border-[#e1e7ea] bg-white">
+                    <div className="aspect-[4/3] animate-pulse bg-[#edf2f5]" />
+                    <div className="space-y-3 p-6">
+                      <div className="h-3 w-24 animate-pulse bg-[#edf2f5]" />
+                      <div className="h-5 w-3/4 animate-pulse bg-[#edf2f5]" />
+                      <div className="h-10 w-full animate-pulse bg-[#f4f7f9]" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : catalogQuery.error ? (
-              <div className="border border-[#e9dba3] border-t-4 border-t-[#f2c92f] bg-[#fffdf5] px-5 py-8 text-center">
+              <div className="border border-[#e9dba3] border-t-4 border-t-[#f2c92f] bg-[#fffdf5] px-5 py-10 text-center">
                 <Package className="mx-auto h-8 w-8 text-[#007cc3]" aria-hidden="true" />
                 <h3 className="mt-4 text-lg font-semibold text-[#001d3d]">O catálogo está temporariamente indisponível</h3>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[#64737d]">
@@ -254,57 +376,70 @@ export default function Loja() {
                 </p>
               </div>
             ) : visibleProducts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {visibleProducts.map((product, index) => {
-                  const Icon = productIcon(product);
-                  return (
-                    <button
-                      key={product.id}
-                      type="button"
-                      onClick={() => openProduct(product)}
-                      aria-label={`Ver detalhes de ${product.name}`}
-                      className="group flex min-h-[300px] flex-col border border-[#e1e7ea] border-t-4 border-t-[#f2c92f] bg-white p-5 text-left shadow-[0_2px_10px_rgba(0,29,61,0.035)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[#c9dbe5] hover:shadow-[0_12px_28px_rgba(0,29,61,0.09)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007cc3] sm:p-6"
-                      style={{ animationDelay: `${index * 45}ms` }}
-                    >
-                      <div className="mb-6 flex items-start justify-between gap-4">
-                        <div className="flex h-[76px] w-[76px] items-center justify-center border border-[#d9e8ef] bg-[#eff6f9] text-[#007cc3] transition-colors group-hover:bg-[#e4f1f6]">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <Icon className="h-10 w-10" strokeWidth={1.3} aria-hidden="true" />
-                          )}
-                        </div>
-                        <span className="border border-[#d9e3e8] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64737d]">
-                          {product.categoryName}
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-semibold leading-snug text-[#001d3d] group-hover:text-[#007cc3]">{product.name}</h3>
-                      <p className="mt-2 flex-grow text-sm leading-6 text-[#687680]">{product.shortDescription}</p>
-                      <div className="mt-5 flex items-end justify-between border-t border-[#e9eef0] pt-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => openProduct(product)}
+                    aria-label={`Ver detalhes e encomendar ${product.name}`}
+                    className="group flex flex-col border border-[#dde5ea] bg-white text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#007cc3] hover:shadow-[0_12px_26px_rgba(0,29,61,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007cc3]"
+                  >
+                    <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-[#e5ebee] bg-[#f4f7f9]">
+                      <ProductVisual
+                        product={product}
+                        alt={product.name}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
+                    </div>
+
+                    <div className="flex flex-grow flex-col p-5 sm:p-6">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.11em] text-[#007cc3]">
+                        {product.categoryName}
+                      </p>
+                      <h3 className="mt-1.5 text-lg font-semibold leading-snug text-[#001d3d] transition-colors group-hover:text-[#007cc3]">
+                        {product.name}
+                      </h3>
+                      <p className="mt-2 flex-grow text-sm leading-6 text-[#61707a] line-clamp-2">
+                        {product.shortDescription}
+                      </p>
+
+                      <div className="mt-5 flex items-end justify-between border-t border-[#eaeff2] pt-4">
                         <div>
-                          <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#829099]">Preço</span>
-                          <span className="mt-1 block text-sm font-bold text-[#001d3d]">Sob consulta</span>
+                          <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7e8d96]">
+                            Preço
+                          </span>
+                          <span className="mt-0.5 block text-sm font-bold text-[#001d3d]">
+                            Sob consulta
+                          </span>
                         </div>
-                        <span className="inline-flex items-center gap-2 text-sm font-bold text-[#007cc3]">
-                          Consultar
-                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-bold text-[#007cc3]">
+                          Encomendar
+                          <ArrowRight
+                            className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
+                            aria-hidden="true"
+                          />
                         </span>
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
+                  </button>
+                ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="border border-[#dfe7eb] border-t-4 border-t-[#f2c92f] bg-[#f7f9fa] px-5 py-10 text-center sm:py-14">
+              <div className="border border-[#dfe7eb] border-t-4 border-t-[#f2c92f] bg-[#f7f9fa] px-5 py-12 text-center">
                 <Package className="mx-auto h-8 w-8 text-[#007cc3]" strokeWidth={1.5} aria-hidden="true" />
                 <h3 className="mt-4 text-lg font-semibold text-[#001d3d]">Ainda não há artigos publicados</h3>
-                <p className="mt-2 text-sm text-[#687680]">Estamos a preparar o catálogo. Volte a consultar esta página em breve.</p>
+                <p className="mt-2 text-sm text-[#687680]">
+                  Estamos a preparar o catálogo. Volte a consultar esta página em breve.
+                </p>
               </div>
             ) : (
-              <div className="border border-[#dfe7eb] border-t-4 border-t-[#f2c92f] bg-[#f7f9fa] px-5 py-10 text-center sm:py-14">
+              <div className="border border-[#dfe7eb] border-t-4 border-t-[#f2c92f] bg-[#f7f9fa] px-5 py-12 text-center">
                 <Search className="mx-auto h-8 w-8 text-[#007cc3]" strokeWidth={1.5} aria-hidden="true" />
                 <h3 className="mt-4 text-lg font-semibold text-[#001d3d]">Não encontrámos esse artigo</h3>
-                <p className="mt-2 text-sm text-[#687680]">Experimente outro termo ou veja todas as categorias.</p>
+                <p className="mt-2 text-sm text-[#687680]">
+                  Experimente outro termo ou veja todas as categorias disponíveis.
+                </p>
                 <button
                   type="button"
                   onClick={() => {
@@ -317,38 +452,56 @@ export default function Loja() {
                 </button>
               </div>
             )}
-
-            <div className="mt-7 flex items-start gap-3 border-l-4 border-[#f2c92f] bg-[#f4f7f9] px-4 py-4 sm:px-5">
-              <CircleHelp className="mt-0.5 h-5 w-5 shrink-0 text-[#007cc3]" strokeWidth={1.8} aria-hidden="true" />
-              <p className="text-sm leading-6 text-[#4f5f69]">
-                <span className="font-bold text-[#001d3d]">Antes de pedir:</span> o catálogo é apenas uma selecção de referência. Ao enviar o formulário, o pedido fica registado na nossa equipa e segue para confirmação no WhatsApp.
-              </p>
-            </div>
           </div>
         </section>
 
-        <section className="bg-[#f4f7f9] py-10 sm:py-12">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 sm:px-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-[#d5e4eb] bg-white text-[#007cc3]">
-                <MapPin className="h-5 w-5" strokeWidth={1.7} aria-hidden="true" />
+        <section className="border-t border-[#e2e8ec] bg-[#f4f7f9] py-10 sm:py-12">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="grid gap-6 border border-[#dce4e9] bg-white p-6 sm:p-8 lg:grid-cols-12 lg:items-center">
+              <div className="grid gap-6 sm:grid-cols-3 lg:col-span-8">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#007cc3] tabular-nums">
+                    01. Selecção
+                  </p>
+                  <h3 className="mt-1.5 text-sm font-semibold text-[#001d3d]">Escolha o artigo</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#61707a]">
+                    Consulte os detalhes e escolha a quantidade necessária para o seu espaço.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#007cc3] tabular-nums">
+                    02. Registo
+                  </p>
+                  <h3 className="mt-1.5 text-sm font-semibold text-[#001d3d]">Referência imediata</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#61707a]">
+                    O pedido fica registado com um código único para acompanhamento pela equipa.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#007cc3] tabular-nums">
+                    03. WhatsApp
+                  </p>
+                  <h3 className="mt-1.5 text-sm font-semibold text-[#001d3d]">Confirmação rápida</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#61707a]">
+                    A equipa confirma o valor, stock e prazo de entrega directamente consigo.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-[#001d3d]">Precisa de ajuda a escolher?</h2>
-                <p className="mt-1 max-w-xl text-sm leading-6 text-[#65747e]">
-                  Fale com a equipa Bioprev para esclarecer dúvidas sobre os artigos e a entrega.
-                </p>
+
+              <div className="flex flex-col gap-3 border-t border-[#e5ebee] pt-6 lg:col-span-4 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                <p className="text-sm font-semibold text-[#001d3d]">Precisa de aconselhamento técnico?</p>
+                <a
+                  href="https://wa.me/244928737888"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 border border-[#007cc3] bg-[#007cc3] px-5 text-sm font-bold text-white transition-colors hover:bg-[#006aa8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  Falar com a equipa
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </a>
               </div>
             </div>
-            <a
-              href="https://wa.me/244928737888"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center justify-center gap-2 border border-[#007cc3] px-5 text-sm font-bold text-[#007cc3] transition-colors hover:bg-[#007cc3] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#001d3d]"
-            >
-              Contactar a equipa
-              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-            </a>
           </div>
         </section>
       </main>
@@ -367,75 +520,77 @@ export default function Loja() {
       >
         <SheetContent
           side="right"
-          className="w-full max-w-[520px] overflow-y-auto border-l-4 border-l-[#f2c92f] bg-white p-0 sm:max-w-[520px]"
+          className="w-full max-w-[540px] overflow-y-auto border-l border-[#dce4e9] bg-white p-0 sm:max-w-[540px]"
           aria-describedby="product-panel-description"
         >
           {selectedProduct && (
             <div className="flex min-h-full flex-col">
-              {selectedProduct.imageUrl && (
-                <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="max-h-64 w-full border-b border-[#e5ebee] bg-[#f4f7f9] object-contain" />
-              )}
-              <div className="border-b border-[#e5ebee] bg-[#f4f7f9] px-5 pb-5 pt-12 sm:px-8 sm:pt-14">
-                <div className="mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#007cc3]">
-                  <span className="h-[2px] w-6 bg-[#f2c92f]" />
+              <div className="aspect-[4/3] w-full overflow-hidden border-b border-[#e5ebee] bg-[#f4f7f9]">
+                <ProductVisual
+                  product={selectedProduct}
+                  alt={selectedProduct.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <div className="border-b border-[#e5ebee] bg-[#f8fafb] px-5 py-6 sm:px-8">
+                <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#007cc3]">
+                  <span className="h-[2px] w-5 bg-[#f2c92f]" />
                   {selectedProduct.categoryName}
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center border border-[#d4e4ec] bg-white text-[#007cc3]">
-                    {selectedProduct.imageUrl
-                      ? <Package className="h-8 w-8" strokeWidth={1.35} aria-hidden="true" />
-                      : (() => {
-                          const Icon = productIcon(selectedProduct);
-                          return <Icon className="h-9 w-9" strokeWidth={1.35} aria-hidden="true" />;
-                        })()}
-                  </div>
-                  <div className="pr-7">
-                    <SheetHeader className="space-y-2 text-left">
-                      <SheetTitle className="text-2xl font-semibold leading-tight tracking-tight text-[#001d3d]">
-                        {selectedProduct.name}
-                      </SheetTitle>
-                      <SheetDescription id="product-panel-description" className="text-sm leading-6 text-[#62727c]">
-                        {selectedProduct.description}
-                      </SheetDescription>
-                    </SheetHeader>
-                  </div>
+                <SheetHeader className="space-y-2 text-left">
+                  <SheetTitle className="text-2xl font-semibold leading-tight tracking-tight text-[#001d3d]">
+                    {selectedProduct.name}
+                  </SheetTitle>
+                  <SheetDescription id="product-panel-description" className="text-sm leading-6 text-[#5c6c76]">
+                    {selectedProduct.description || selectedProduct.shortDescription}
+                  </SheetDescription>
+                </SheetHeader>
+
+                <div className="mt-5 flex items-center justify-between border-t border-[#e2e8ec] pt-4 text-sm">
+                  <span className="text-[#64737d]">Preço unitário</span>
+                  <span className="font-bold text-[#001d3d]">Sob consulta</span>
                 </div>
               </div>
 
               <div className="flex-grow px-5 py-6 sm:px-8">
-                <div className="border-l-4 border-[#007cc3] bg-[#f4f7f9] px-4 py-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.11em] text-[#64737d]">
-                    <Package className="h-4 w-4 text-[#007cc3]" aria-hidden="true" />
-                    Detalhes do artigo
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[#4f5f69]">{selectedProduct.description || selectedProduct.shortDescription}</p>
-                  <div className="mt-4 flex items-center justify-between border-t border-[#dfe7eb] pt-3">
-                    <span className="text-sm text-[#64737d]">Preço</span>
-                    <span className="text-sm font-bold text-[#001d3d]">Sob consulta</span>
-                  </div>
-                </div>
-
                 {submittedOrder ? (
-                  <div className="mt-7 space-y-5 border border-[#cce4d7] border-t-4 border-t-[#276445] bg-[#f1f8f4] p-5">
+                  <div className="space-y-5 border border-[#cce4d7] border-t-4 border-t-[#276445] bg-[#f1f8f4] p-5">
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#276445]" aria-hidden="true" />
                       <div>
                         <h3 className="text-lg font-semibold text-[#001d3d]">Pedido registado</h3>
                         <p className="mt-1 text-sm leading-6 text-[#344754]">
                           O seu pedido ficou registado na nossa loja com a referência{" "}
-                          <strong className="font-bold text-[#001d3d]">{submittedOrder.order.reference}</strong>.
+                          <strong className="font-mono font-bold text-[#001d3d]">
+                            {submittedOrder.order.reference}
+                          </strong>
+                          .
                         </p>
                       </div>
                     </div>
 
                     <div className="space-y-1.5 border-t border-[#d6e9df] pt-4 text-sm text-[#344754]">
-                      <p><strong>Artigo:</strong> {submittedOrder.order.productName} (x{submittedOrder.order.quantity})</p>
+                      <p>
+                        <strong>Artigo:</strong> {submittedOrder.order.productName} (x
+                        {submittedOrder.order.quantity})
+                      </p>
                       {submittedOrder.order.customerName && (
-                        <p><strong>Nome / Empresa:</strong> {submittedOrder.order.customerName}</p>
+                        <p>
+                          <strong>Nome / Empresa:</strong> {submittedOrder.order.customerName}
+                        </p>
                       )}
-                      <p><strong>Telefone:</strong> {submittedOrder.order.telephone}</p>
-                      <p><strong>Morada:</strong> {submittedOrder.order.address}</p>
-                      {submittedOrder.order.city && <p><strong>Cidade:</strong> {submittedOrder.order.city}</p>}
+                      <p>
+                        <strong>Telefone:</strong> {submittedOrder.order.telephone}
+                      </p>
+                      <p>
+                        <strong>Morada:</strong> {submittedOrder.order.address}
+                      </p>
+                      {submittedOrder.order.city && (
+                        <p>
+                          <strong>Cidade:</strong> {submittedOrder.order.city}
+                        </p>
+                      )}
                     </div>
 
                     <a
@@ -458,10 +613,10 @@ export default function Loja() {
                   </div>
                 ) : (
                   <>
-                    <div className="mb-5 mt-7">
-                      <h3 className="text-lg font-semibold text-[#001d3d]">Consultar este artigo</h3>
+                    <div className="mb-5">
+                      <h3 className="text-lg font-semibold text-[#001d3d]">Solicitar encomenda</h3>
                       <p className="mt-1 text-sm leading-6 text-[#64737d]">
-                        Indique os seus dados para registar o pedido e abrir a mensagem no WhatsApp.
+                        Preencha os dados de entrega para registar o pedido e abrir a conversa no WhatsApp.
                       </p>
                     </div>
 
@@ -487,17 +642,38 @@ export default function Loja() {
                         <label htmlFor="request-quantity" className="text-sm font-semibold text-[#263b49]">
                           Quantidade <span className="text-[#007cc3]">*</span>
                         </label>
-                        <input
-                          id="request-quantity"
-                          name="quantity"
-                          type="number"
-                          min="1"
-                          step="1"
-                          required
-                          value={quantity}
-                          onChange={(event) => setQuantity(event.target.value)}
-                          className={inputClassName}
-                        />
+                        <div className="mt-2 flex items-stretch">
+                          <button
+                            type="button"
+                            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                            aria-label="Diminuir quantidade"
+                            className="flex min-h-12 w-12 items-center justify-center border border-r-0 border-[#c8d2da] bg-[#f8fafb] text-[#001d3d] transition-colors hover:bg-[#edf3f7]"
+                          >
+                            <Minus className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                          <input
+                            id="request-quantity"
+                            name="quantity"
+                            type="number"
+                            min={1}
+                            max={10000}
+                            step={1}
+                            required
+                            value={quantity}
+                            onChange={(event) =>
+                              setQuantity(Math.max(1, parseInt(event.target.value, 10) || 1))
+                            }
+                            className="min-h-12 w-full border border-[#c8d2da] bg-white px-4 text-center text-[15px] font-semibold tabular-nums text-[#001d3d] outline-none focus:border-[#007cc3]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setQuantity((q) => Math.min(10000, q + 1))}
+                            aria-label="Aumentar quantidade"
+                            className="flex min-h-12 w-12 items-center justify-center border border-l-0 border-[#c8d2da] bg-[#f8fafb] text-[#001d3d] transition-colors hover:bg-[#edf3f7]"
+                          >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </div>
                       </div>
 
                       <div>
@@ -536,7 +712,9 @@ export default function Loja() {
                       </div>
 
                       <div>
-                        <label htmlFor="request-city" className="text-sm font-semibold text-[#263b49]">Cidade (opcional)</label>
+                        <label htmlFor="request-city" className="text-sm font-semibold text-[#263b49]">
+                          Cidade (opcional)
+                        </label>
                         <input
                           id="request-city"
                           name="city"
@@ -549,7 +727,9 @@ export default function Loja() {
                       </div>
 
                       <div>
-                        <label htmlFor="request-notes" className="text-sm font-semibold text-[#263b49]">Notas de entrega (opcional)</label>
+                        <label htmlFor="request-notes" className="text-sm font-semibold text-[#263b49]">
+                          Notas de entrega (opcional)
+                        </label>
                         <textarea
                           id="request-notes"
                           name="deliveryNotes"
@@ -571,7 +751,7 @@ export default function Loja() {
                         <div className="flex gap-3">
                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#007cc3]" aria-hidden="true" />
                           <p className="text-xs leading-5 text-[#5c6c76]">
-                            O pedido é guardado para acompanhamento na loja e abre o WhatsApp com os dados preenchidos para confirmar preço, disponibilidade e entrega.
+                            O pedido fica registado para acompanhamento e abre o WhatsApp com os dados preenchidos para confirmar preço, stock e entrega.
                           </p>
                         </div>
                       </div>
@@ -593,9 +773,6 @@ export default function Loja() {
                           </>
                         )}
                       </button>
-                      <p className="pb-2 text-center text-xs leading-5 text-[#74828b]">
-                        O WhatsApp abre com a referência e os detalhes do pedido para rever e enviar.
-                      </p>
                     </form>
                   </>
                 )}

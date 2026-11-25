@@ -5,6 +5,14 @@ import { StoreError } from "./storeDatabase";
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 const maximumImageBytes = 5 * 1024 * 1024;
 
+export function isCloudinaryConfigured(): boolean {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME?.trim() &&
+    process.env.CLOUDINARY_API_KEY?.trim() &&
+    process.env.CLOUDINARY_API_SECRET?.trim(),
+  );
+}
+
 function cloudinaryConfig() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
@@ -18,6 +26,32 @@ function cloudinaryConfig() {
   }
   cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
   return cloudName;
+}
+
+export async function verifyCloudinaryHealth(): Promise<{
+  configured: boolean;
+  connected: boolean;
+  error?: string;
+}> {
+  if (!isCloudinaryConfigured()) {
+    return {
+      configured: false,
+      connected: false,
+      error: "Defina CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY e CLOUDINARY_API_SECRET nas variáveis de ambiente.",
+    };
+  }
+
+  try {
+    cloudinaryConfig();
+    await cloudinary.api.ping();
+    return { configured: true, connected: true };
+  } catch (error) {
+    return {
+      configured: true,
+      connected: false,
+      error: error instanceof Error ? error.message : "Não foi possível validar a ligação à Cloudinary.",
+    };
+  }
 }
 
 function hasValidImageSignature(buffer: Buffer, mimeType: string): boolean {

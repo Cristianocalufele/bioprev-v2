@@ -3,9 +3,40 @@ import type { StoreCatalog, StoreOrder } from "@shared/store";
 export type AdminAccess = { isAdmin: true; email: string };
 export type StoreAdminConfig = {
   tursoConfigured: boolean;
+  tursoConnected: boolean;
+  tursoLatencyMs: number | null;
+  tursoError: string | null;
   cloudinaryConfigured: boolean;
+  cloudinaryConnected: boolean;
+  cloudinaryError: string | null;
+  syncReady: boolean;
   secretPasscodeConfigured: boolean;
   authMode: "passcode";
+  codeCatalogSummary: {
+    categories: number;
+    products: number;
+    productsWithLocalImages: number;
+  };
+};
+export type StoreSyncItemResult = {
+  slug: string;
+  name: string;
+  categorySlug: string;
+  categoryName: string;
+  action: "criado" | "actualizado";
+  imageStatus: "enviada_cloudinary" | "ja_ligada" | "sem_imagem_local";
+  imagePublicId: string | null;
+  imageUrl: string | null;
+};
+export type StoreSyncResult = {
+  syncedAt: string;
+  categoriesCreated: number;
+  categoriesUpdated: number;
+  productsCreated: number;
+  productsUpdated: number;
+  imagesUploaded: number;
+  imagesAlreadyLinked: number;
+  items: StoreSyncItemResult[];
 };
 export type AdminAuthStatus = {
   mode: "passcode";
@@ -102,4 +133,11 @@ export async function uploadProductImage(file: File): Promise<UploadedProductIma
     body: file,
   });
   return responseJson<UploadedProductImage>(response);
+}
+
+export async function runStoreSync(overwriteImages = false): Promise<StoreSyncResult> {
+  return storeApi<StoreSyncResult>("/api/admin/sync", {
+    method: "POST",
+    body: JSON.stringify({ overwriteImages }),
+  });
 }

@@ -14,7 +14,7 @@ import {
   verifyAdminPasscodeLogin,
   type AdminRequest,
 } from "./storeAuth";
-import { isStoreConfigured, StoreError } from "./storeDatabase";
+import { StoreError, verifyTursoHealth } from "./storeDatabase";
 import {
   createAdminOrder,
   createCategory,
@@ -30,7 +30,16 @@ import {
   updateCategory,
   updateProduct,
 } from "./storeRepository";
-import { assertImageUpload, deleteProductImage, uploadProductImage } from "./storeMedia";
+import {
+  assertImageUpload,
+  deleteProductImage,
+  uploadProductImage,
+  verifyCloudinaryHealth,
+} from "./storeMedia";
+import {
+  getCodeCatalogSummary,
+  syncCodeCatalogToTursoAndCloudinary,
+} from "./storeSync";
 
 const router = Router();
 const uuidSchema = z.string().uuid();
@@ -111,17 +120,39 @@ router.get("/api/admin/access", requireStoreAdmin, (req, res) => {
   return res.json({ isAdmin: true, email: (req as AdminRequest).storeAdminEmail });
 });
 
-router.get("/api/admin/config", requireStoreAdmin, (_req, res) => {
+const syncPayloadSchema = z.object({
+  overwriteImages: z.boolean().optional().default(false),
+});
+
+router.get("/api/admin/config", requireStoreAdmin, async (_req, res) => {
+  const [turso, cloudinary] = await Promise.all([
+    verifyTursoHealth(),
+    verifyCloudinaryHealth(),
+  ]);
+
   return res.json({
-    tursoConfigured: isStoreConfigured(),
-    cloudinaryConfigured: Boolean(
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET,
-    ),
+    tursoConfigured: turso.configured,
+    tursoConnected: turso.connected,
+    tursoLatencyMs: turso.latencyMs ?? null,
+    tursoError: turso.error ?? null,
+    cloudinaryConfigured: cloudinary.configured,
+    cloudinaryConnected: cloudinary.connected,
+    cloudinaryError: cloudinary.error ?? null,
+    syncReady: turso.connected && cloudinary.connected,
     secretPasscodeConfigured: Boolean(process.env.ADMIN_PASSCODE?.trim() || process.env.ADMIN_PASSWORD?.trim()),
     authMode: "passcode",
+    codeCatalogSummary: getCodeCatalogSummary(),
   });
+});
+
+router.post("/api/admin/sync", requireStoreAdmin, async (req, res) => {
+  try {
+    const payload = syncPayloadSchema.parse(req.body ?? {});
+    const result = await syncCodeCatalogToTursoAndCloudinary(payload);
+    return res.json(result);
+  } catch (error) {
+    return sendError(res, error);
+  }
 });
 
 router.get("/api/admin/catalog", requireStoreAdmin, async (_req, res) => {
