@@ -51,8 +51,8 @@ export interface ServicePageData {
   breadcrumbParent?: { label: string; href: string };
   heroTitle: string;
   heroSubtitle: string;
-  introTitle: string;
-  introText: string;
+  introTitle?: string;
+  introText?: string;
   introSubtext?: string;
   sectionTitle?: string;
   sectionText?: string;
@@ -163,9 +163,11 @@ export default function ServicePageTemplate({ data }: { data: ServicePageData })
 
         <section className="py-12 sm:py-16 md:py-20 bg-white">
           <div ref={introReveal.ref} className={`container mx-auto px-4 sm:px-6 max-w-4xl text-center sr-hidden ${introReveal.isVisible ? 'sr-visible' : ''}`}>
-            <p className={`text-[#333333] text-base sm:text-lg leading-relaxed font-medium ${(data.introSubtext || data.sectionTitle || data.sectionText) ? 'mb-5 sm:mb-8' : ''}`}>
-              {data.introText}
-            </p>
+            {data.introText && (
+              <p className={`text-[#333333] text-base sm:text-lg leading-relaxed font-medium ${(data.introSubtext || data.sectionTitle || data.sectionText) ? 'mb-5 sm:mb-8' : ''}`}>
+                {data.introText}
+              </p>
+            )}
             {data.introSubtext && (
               <p className={`text-[#666666] text-sm sm:text-base leading-relaxed ${(data.sectionTitle || data.sectionText) ? 'mb-10 sm:mb-16' : ''}`}>
                 {data.introSubtext}

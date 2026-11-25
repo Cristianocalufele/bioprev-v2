@@ -25,7 +25,11 @@ const productSeedImageFiles: Record<string, string> = {
 };
 
 function resolveAssetsImagesDir(): string {
-  return path.resolve(import.meta.dirname, "..", "client", "src", "assets", "images");
+  const baseDir =
+    typeof import.meta?.dirname === "string"
+      ? path.resolve(import.meta.dirname, "..")
+      : process.cwd();
+  return path.resolve(baseDir, "client", "src", "assets", "images");
 }
 
 async function readLocalProductImage(slug: string): Promise<Buffer | null> {

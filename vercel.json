@@ -1,7 +1,13 @@
 {
-  "buildCommand": "npx vite build",
+  "installCommand": "npm install --no-audit --no-fund --legacy-peer-deps",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
   "framework": "vite",
+  "functions": {
+    "api/index.mjs": {
+      "includeFiles": "client/src/assets/images/product_*.jpg"
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
