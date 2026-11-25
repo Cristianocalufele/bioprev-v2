@@ -329,13 +329,13 @@ export function AdminLoginPage() {
         <h1 className="mt-1 text-2xl font-semibold text-[#001d3d]">
           {needsSetup ? "Definir senha de acesso" : "Entrar na administração"}
         </h1>
-        <p className="mt-2 text-sm leading-6 text-[#5d6c75]">
-          {usingSecretEnv
-            ? "Introduza a senha configurada nos Secrets do projecto (ADMIN_PASSCODE ou ADMIN_PASSWORD) para gerir artigos e pedidos."
-            : needsSetup
+        {!usingSecretEnv && (
+          <p className="mt-2 text-sm leading-6 text-[#5d6c75]">
+            {needsSetup
               ? "A variável ADMIN_PASSCODE (ou ADMIN_PASSWORD) ainda não está definida nos Secrets. Defina uma senha inicial abaixo para aceder já à loja, ou adicione a variável nos Secrets."
               : "Introduza a senha de administrador para gerir os artigos, categorias e pedidos da loja."}
-        </p>
+          </p>
+        )}
 
         {authStatusQuery.error && (
           <p role="alert" className="mt-4 border border-[#f0d3cc] bg-[#fff7f5] px-3 py-2 text-sm text-[#914533]">
@@ -1002,7 +1002,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
       ? {
           eyebrow: "Catálogo e inventário",
           title: "Artigos",
-          description: "Gira preços em Kwanzas, SKU, stock, galeria de fotos e fichas técnicas dos equipamentos.",
+          description: "",
         }
       : activeTab === "categories"
         ? {
@@ -1263,9 +1263,11 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
               <h1 className="text-balance text-3xl font-semibold tracking-tight text-[#001d3d] sm:text-4xl">
                 {sectionMeta.title}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#62727c]">
-                {sectionMeta.description}
-              </p>
+              {sectionMeta.description && (
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#62727c]">
+                  {sectionMeta.description}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2.5 shrink-0">
               {activeTab === "products" ? (
