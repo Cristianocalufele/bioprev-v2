@@ -13,7 +13,24 @@ function configuredEnvPasscode(): string | undefined {
 }
 
 function sessionSecret(): string {
-  return process.env.ADMIN_SESSION_SECRET?.trim() || ephemeralSessionSecret;
+  const explicit = process.env.ADMIN_SESSION_SECRET?.trim();
+  if (explicit) return explicit;
+
+  const envSeed = [
+    process.env.ADMIN_PASSCODE?.trim(),
+    process.env.ADMIN_PASSWORD?.trim(),
+    process.env.TURSO_AUTH_TOKEN?.trim(),
+    process.env.TURSO_DATABASE_URL?.trim(),
+    process.env.CLOUDINARY_API_SECRET?.trim(),
+  ]
+    .filter(Boolean)
+    .join("|");
+
+  if (envSeed) {
+    return createHmac("sha256", "bioprev-store-session-v1").update(envSeed).digest("hex");
+  }
+
+  return ephemeralSessionSecret;
 }
 
 function hashPasscode(passcode: string): string {

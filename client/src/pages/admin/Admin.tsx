@@ -64,6 +64,7 @@ import {
   runStoreSync,
   setAdminToken,
   storeApi,
+  StoreApiError,
   uploadProductDatasheet,
   uploadProductImage,
   type AdminAccess,
@@ -516,6 +517,14 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     queryFn: fetchAdminCustomers,
     retry: false,
   });
+
+  useEffect(() => {
+    const errors = [configQuery.error, catalogQuery.error, ordersQuery.error, customersQuery.error];
+    const hasAuthError = errors.some((err) => err instanceof StoreApiError && err.status === 401);
+    if (hasAuthError) {
+      onSignOut();
+    }
+  }, [catalogQuery.error, configQuery.error, customersQuery.error, onSignOut, ordersQuery.error]);
 
   const catalog = catalogQuery.data;
   const categories = catalog?.categories ?? [];
@@ -1413,6 +1422,11 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
               <AdminAnalyticsTab />
             ) : activeTab === "sync" ? (
               <div className="divide-y divide-[#e8edef]">
+                {configQuery.isError && (
+                  <div role="alert" className="border-b border-[#f0d3cc] bg-[#fff7f5] px-5 py-4 text-sm text-[#914533] sm:px-6">
+                    {apiError(configQuery.error, "Não foi possível obter o estado das ligações no servidor. Clique em Verificar ligações ou faça um novo deploy na Vercel.")}
+                  </div>
+                )}
                 <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
                   <div className="border border-[#dce4e9] bg-[#fafcfd] p-5">
                     <div className="flex items-start justify-between gap-3">
