@@ -5,7 +5,10 @@ Website institucional da Bioprev Angola, empresa de controle de pragas, desinfes
 
 ## Stack
 - **Frontend**: React + TypeScript + Vite + TailwindCSS + Wouter (routing)
-- **Backend**: Express (apenas API mínima, sem DB — site institucional)
+- **Backend**: Express; newsletter existente e API da loja
+- **Autenticação de administração**: Clerk; autorização verificada no servidor pelo email permitido
+- **Base da loja**: Turso/libSQL, separada do schema PostgreSQL/Drizzle existente
+- **Imagens de produtos**: Cloudinary, carregadas pelo servidor
 - **SEO**: react-helmet-async para meta tags dinâmicas por página
 - **UI**: Lucide React (ícones), Embla Carousel, Framer Motion (animações)
 
@@ -27,6 +30,8 @@ client/
     pages/
       Home.tsx
       Contact.tsx
+      loja/Loja.tsx         # Catálogo público ligado à API Turso
+      admin/Admin.tsx       # Gestão protegida de produtos, categorias e imagens
       Locations.tsx       # 3 cidades com Google Maps
       not-found.tsx       # 404 em português com SEOHead noindex
       about/              # About, History, Careers
@@ -36,9 +41,26 @@ client/
 server/
   index.ts
   routes.ts
+  storeRoutes.ts
+  storeRepository.ts
+  storeDatabase.ts
+  storeMedia.ts
+  storeAuth.ts
 shared/
   schema.ts
+  store.ts
+scripts/
+  setup-store-db.ts
+docs/
+  store-admin-setup.md
 ```
+
+## Administração da loja
+- Visitar `/admin` para gerir produtos e categorias; o primeiro email autorizado é configurado em `ADMIN_EMAIL`.
+- A API verifica a sessão Clerk e o email verificado no servidor. Os dados públicos vêm de `/api/store/catalog`.
+- Configurar `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` nos Secrets e executar `npm run db:store:setup` para criar o schema e semear o catálogo inicial.
+- Configurar `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` e `CLOUDINARY_API_SECRET` nos Secrets para activar uploads (JPG, PNG, WebP, AVIF até 5 MB).
+- O guia `docs/store-admin-setup.md` explica a configuração, os ambientes, o schema e a resolução de problemas. Não guardar valores de Secrets no repositório.
 
 ## Arquitetura de Setores (IMPORTANTE)
 Os setores empresariais (Hotelaria, Escritórios, Restauração, Farmacêutica, etc.) **NÃO** têm páginas próprias.

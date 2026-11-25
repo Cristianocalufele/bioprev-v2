@@ -1,9 +1,13 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { publishableKeyFromHost } from "@clerk/react/internal";
+import { ptPT } from "@clerk/localizations";
+import { shadcn } from "@clerk/themes";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Contact = lazy(() => import("@/pages/Contact"));
@@ -27,7 +31,74 @@ const About = lazy(() => import("@/pages/about/About"));
 const History = lazy(() => import("@/pages/about/History"));
 const Careers = lazy(() => import("@/pages/about/Careers"));
 const ManagementPolicy = lazy(() => import("@/pages/about/ManagementPolicy"));
+const Admin = lazy(() => import("@/pages/admin/Admin"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function stripBase(path: string): string {
+  return basePath && path.startsWith(basePath)
+    ? path.slice(basePath.length) || "/"
+    : path;
+}
+
+if (!clerkPubKey) {
+  throw new Error("Falta a configuração de autenticação da área de administração.");
+}
+
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: "clerk",
+  options: {
+    logoPlacement: "inside" as const,
+    logoLinkUrl: basePath || "/",
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+  },
+  variables: {
+    colorPrimary: "#007cc3",
+    colorForeground: "#001d3d",
+    colorMutedForeground: "#60717b",
+    colorDanger: "#a44232",
+    colorBackground: "#ffffff",
+    colorInput: "#ffffff",
+    colorInputForeground: "#001d3d",
+    colorNeutral: "#001d3d",
+    fontFamily: "Inter, sans-serif",
+    borderRadius: "0px",
+  },
+  elements: {
+    rootBox: "w-full flex justify-center",
+    cardBox: "bg-white rounded-none w-[440px] max-w-full overflow-hidden border border-[#dfe7eb] shadow-sm",
+    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    headerTitle: "text-[#001d3d]",
+    headerSubtitle: "text-[#5e6c75]",
+    socialButtonsBlockButtonText: "text-[#263b49]",
+    formFieldLabel: "text-[#263b49]",
+    footerActionLink: "text-[#007cc3]",
+    footerActionText: "text-[#5e6c75]",
+    dividerText: "text-[#60717b]",
+    identityPreviewEditButton: "text-[#007cc3]",
+    formFieldSuccessText: "text-[#276445]",
+    alertText: "text-[#914533]",
+    logoBox: "mx-auto",
+    logoImage: "max-h-12",
+    socialButtonsBlockButton: "border-[#d7e0e5] bg-white",
+    formButtonPrimary: "bg-[#007cc3] hover:bg-[#006ba9] text-white",
+    formFieldInput: "border-[#cbd6dc] bg-white text-[#001d3d]",
+    footerAction: "text-[#5e6c75]",
+    dividerLine: "bg-[#dfe7eb]",
+    alert: "border-[#f0d3cc] bg-[#fff7f5]",
+    otpCodeFieldInput: "border-[#cbd6dc] bg-white text-[#001d3d]",
+    formFieldRow: "text-[#263b49]",
+    main: "text-[#263b49]",
+  },
+};
 
 function ScrollToHash() {
   const [location] = useLocation();
@@ -88,6 +159,28 @@ function Router() {
     <Suspense fallback={<PageLoader />}>
       <ScrollToHash />
       <Switch>
+        <Route path="/sign-in/*?">
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[#f4f7f9] px-4 py-10">
+            <SignIn
+              routing="path"
+              path={`${basePath}/sign-in`}
+              signUpUrl={`${basePath}/sign-up`}
+              fallbackRedirectUrl={`${basePath}/admin`}
+            />
+          </div>
+        </Route>
+        <Route path="/sign-up/*?">
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[#f4f7f9] px-4 py-10">
+            <SignUp
+              routing="path"
+              path={`${basePath}/sign-up`}
+              signInUrl={`${basePath}/sign-in`}
+              fallbackRedirectUrl={`${basePath}/admin`}
+            />
+          </div>
+        </Route>
+        <Route path="/admin" component={Admin} />
+        <Route path="/admin/:rest*" component={Admin} />
         <Route path="/" component={Home} />
         <Route path="/contact" component={Contact} />
         <Route path="/loja" component={Loja} />
@@ -117,14 +210,55 @@ function Router() {
   );
 }
 
+function ClerkQueryClientCacheInvalidator() {
+  const { addListener } = useClerk();
+  const queryClient = useQueryClient();
+  const previousUserId = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = addListener(({ user }) => {
+      const nextUserId = user?.id ?? null;
+      if (previousUserId.current !== undefined && previousUserId.current !== nextUserId) {
+        queryClient.clear();
+      }
+      previousUserId.current = nextUserId;
+    });
+    return unsubscribe;
+  }, [addListener, queryClient]);
+
+  return null;
+}
+
+function ClerkProviderWithRoutes() {
+  const [, setLocation] = useLocation();
+
+  return (
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      localization={ptPT}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <QueryClientProvider client={queryClient}>
+        <ClerkQueryClientCacheInvalidator />
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
+  );
+}
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <WouterRouter base={basePath}>
+      <ClerkProviderWithRoutes />
+    </WouterRouter>
   );
 }
 

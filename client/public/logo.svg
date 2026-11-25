@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-labelledby="title">
+  <title id="title">Bioprev — Prestação de Serviços</title>
+  <rect width="360" height="96" fill="#ffffff"/>
+  <path d="M20 13h131" stroke="#f2c92f" stroke-width="6"/>
+  <text x="20" y="69" fill="#001d3d" font-family="Arial, Helvetica, sans-serif" font-size="53" font-weight="800" letter-spacing="-2">BIOPREV</text>
+  <path d="M24 79h176" stroke="#f2c92f" stroke-width="3"/>
+  <text x="207" y="84" fill="#001d3d" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="700" letter-spacing=".7">PRESTAÇÃO DE SERVIÇOS</text>
+</svg>

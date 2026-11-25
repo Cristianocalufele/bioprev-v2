@@ -8,7 +8,7 @@ const isReplit = process.env.REPL_ID !== undefined;
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss({ optimize: false }),
     ...(isReplit
       ? [
           (await import("@replit/vite-plugin-runtime-error-modal")).default(),

@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -28,77 +29,28 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
-type ProductCategory = "Monitorização" | "Limpeza" | "Protecção";
-
-interface StoreProduct {
-  id: string;
-  name: string;
-  category: ProductCategory;
-  description: string;
-  detail: string;
-  icon: LucideIcon;
-}
-
-const products: StoreProduct[] = [
-  {
-    id: "estacao-monitorizacao",
-    name: "Estação de monitorização",
-    category: "Monitorização",
-    description: "Referência de equipamento para apoiar a observação de áreas e o acompanhamento de sinais de actividade.",
-    detail: "Indicada como item de referência para rotinas de monitorização. A configuração e disponibilidade são confirmadas pela equipa.",
-    icon: Target,
-  },
-  {
-    id: "armadilha-monitorizacao",
-    name: "Armadilha de monitorização",
-    category: "Monitorização",
-    description: "Uma opção de referência para apoiar a monitorização regular de espaços residenciais ou profissionais.",
-    detail: "As características adequadas dependem do espaço e da necessidade. Fale com a equipa para confirmar a opção disponível.",
-    icon: ClipboardList,
-  },
-  {
-    id: "pulverizador-manual",
-    name: "Pulverizador manual",
-    category: "Limpeza",
-    description: "Equipamento de apoio para tarefas de limpeza e manutenção do dia a dia.",
-    detail: "Artigo de referência. A equipa poderá esclarecer a disponibilidade e os detalhes do equipamento antes de qualquer pedido.",
-    icon: SprayCan,
-  },
-  {
-    id: "utensilio-limpeza",
-    name: "Utensílio de limpeza manual",
-    category: "Limpeza",
-    description: "Uma referência para complementar as rotinas de limpeza em casa ou no local de trabalho.",
-    detail: "A escolha do utensílio depende da utilização pretendida. Consulte a equipa sobre as opções disponíveis.",
-    icon: Brush,
-  },
-  {
-    id: "luvas-protecao",
-    name: "Luvas de protecção",
-    category: "Protecção",
-    description: "Artigo de protecção individual apresentado como referência para tarefas de higiene e limpeza.",
-    detail: "Consulte a equipa para confirmar as opções disponíveis e verificar se correspondem à utilização pretendida.",
-    icon: Hand,
-  },
-  {
-    id: "oculos-protecao",
-    name: "Óculos de protecção",
-    category: "Protecção",
-    description: "Artigo de protecção individual de referência para actividades de limpeza e manutenção.",
-    detail: "As opções e características devem ser confirmadas com a equipa antes de avançar com o pedido.",
-    icon: Shield,
-  },
-];
-
-const categories = ["Todos", "Monitorização", "Limpeza", "Protecção"] as const;
-type CategoryFilter = (typeof categories)[number];
+import type { StoreProduct } from "@shared/store";
+import { publicStoreCatalog, StoreApiError } from "@/lib/storeApi";
 
 const inputClassName =
   "mt-2 min-h-12 w-full border border-[#c8d2da] bg-white px-4 py-3 text-[15px] text-[#001d3d] outline-none transition-colors placeholder:text-[#8a969e] focus:border-[#007cc3] focus:ring-2 focus:ring-[#007cc3]/15";
 
+function productIcon(product: StoreProduct): LucideIcon {
+  const category = product.categorySlug.toLocaleLowerCase("pt");
+  if (category.includes("limpeza")) return product.slug.includes("pulverizador") ? SprayCan : Brush;
+  if (category.includes("protec") || category.includes("prote")) return product.slug.includes("luvas") ? Hand : Shield;
+  return product.slug.includes("armadilha") ? ClipboardList : Target;
+}
+
 export default function Loja() {
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("Todos");
+  const catalogQuery = useQuery({
+    queryKey: ["store", "catalog"],
+    queryFn: publicStoreCatalog,
+    retry: false,
+  });
+  const products = catalogQuery.data?.products ?? [];
+  const categories = catalogQuery.data?.categories ?? [];
+  const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
   const [quantity, setQuantity] = useState("1");
@@ -110,13 +62,13 @@ export default function Loja() {
   const visibleProducts = useMemo(() => {
     const normalisedSearch = searchTerm.trim().toLocaleLowerCase("pt");
     return products.filter((product) => {
-      const matchesCategory = activeCategory === "Todos" || product.category === activeCategory;
+      const matchesCategory = activeCategory === "Todos" || product.categoryName === activeCategory;
       const matchesSearch =
         normalisedSearch.length === 0 ||
-        `${product.name} ${product.category} ${product.description}`.toLocaleLowerCase("pt").includes(normalisedSearch);
+        `${product.name} ${product.categoryName} ${product.shortDescription}`.toLocaleLowerCase("pt").includes(normalisedSearch);
       return matchesCategory && matchesSearch;
     });
-  }, [activeCategory, searchTerm]);
+  }, [activeCategory, products, searchTerm]);
 
   const openProduct = (product: StoreProduct) => {
     setSelectedProduct(product);
@@ -219,13 +171,13 @@ export default function Loja() {
                 <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#007cc3]">Catálogo de referência</p>
                 <h2 className="text-2xl font-semibold tracking-tight text-[#001d3d] sm:text-3xl">Artigos em destaque</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64737d]">
-                  Estes exemplos ajudam a iniciar a conversa. Preço, disponibilidade e entrega são confirmados pela nossa equipa.
+                  Consulte a equipa para confirmar disponibilidade, preço e condições de entrega.
                 </p>
               </div>
             </div>
 
             <div className="mb-7 flex flex-wrap gap-2" role="group" aria-label="Filtrar artigos por categoria">
-              {categories.map((category) => {
+              {["Todos", ...categories.map((category) => category.name)].map((category) => {
                 const isActive = activeCategory === category;
                 return (
                   <button
@@ -245,10 +197,24 @@ export default function Loja() {
               })}
             </div>
 
-            {visibleProducts.length > 0 ? (
+            {catalogQuery.isPending ? (
+              <div className="border border-[#dfe7eb] bg-[#f7f9fa] px-5 py-12 text-center text-sm text-[#64737d]">
+                A carregar o catálogo…
+              </div>
+            ) : catalogQuery.error ? (
+              <div className="border border-[#e9dba3] border-t-4 border-t-[#f2c92f] bg-[#fffdf5] px-5 py-8 text-center">
+                <Package className="mx-auto h-8 w-8 text-[#007cc3]" aria-hidden="true" />
+                <h3 className="mt-4 text-lg font-semibold text-[#001d3d]">O catálogo está temporariamente indisponível</h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[#64737d]">
+                  {catalogQuery.error instanceof StoreApiError
+                    ? catalogQuery.error.message
+                    : "Não foi possível carregar os artigos. Tente novamente mais tarde."}
+                </p>
+              </div>
+            ) : visibleProducts.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {visibleProducts.map((product, index) => {
-                  const Icon = product.icon;
+                  const Icon = productIcon(product);
                   return (
                     <button
                       key={product.id}
@@ -260,14 +226,18 @@ export default function Loja() {
                     >
                       <div className="mb-6 flex items-start justify-between gap-4">
                         <div className="flex h-[76px] w-[76px] items-center justify-center border border-[#d9e8ef] bg-[#eff6f9] text-[#007cc3] transition-colors group-hover:bg-[#e4f1f6]">
-                          <Icon className="h-10 w-10" strokeWidth={1.3} aria-hidden="true" />
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <Icon className="h-10 w-10" strokeWidth={1.3} aria-hidden="true" />
+                          )}
                         </div>
                         <span className="border border-[#d9e3e8] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64737d]">
-                          {product.category}
+                          {product.categoryName}
                         </span>
                       </div>
                       <h3 className="text-lg font-semibold leading-snug text-[#001d3d] group-hover:text-[#007cc3]">{product.name}</h3>
-                      <p className="mt-2 flex-grow text-sm leading-6 text-[#687680]">{product.description}</p>
+                      <p className="mt-2 flex-grow text-sm leading-6 text-[#687680]">{product.shortDescription}</p>
                       <div className="mt-5 flex items-end justify-between border-t border-[#e9eef0] pt-4">
                         <div>
                           <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#829099]">Preço</span>
@@ -281,6 +251,12 @@ export default function Loja() {
                     </button>
                   );
                 })}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="border border-[#dfe7eb] border-t-4 border-t-[#f2c92f] bg-[#f7f9fa] px-5 py-10 text-center sm:py-14">
+                <Package className="mx-auto h-8 w-8 text-[#007cc3]" strokeWidth={1.5} aria-hidden="true" />
+                <h3 className="mt-4 text-lg font-semibold text-[#001d3d]">Ainda não há artigos publicados</h3>
+                <p className="mt-2 text-sm text-[#687680]">Estamos a preparar o catálogo. Volte a consultar esta página em breve.</p>
               </div>
             ) : (
               <div className="border border-[#dfe7eb] border-t-4 border-t-[#f2c92f] bg-[#f7f9fa] px-5 py-10 text-center sm:py-14">
@@ -350,14 +326,22 @@ export default function Loja() {
         >
           {selectedProduct && (
             <div className="flex min-h-full flex-col">
+              {selectedProduct.imageUrl && (
+                <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="max-h-64 w-full border-b border-[#e5ebee] bg-[#f4f7f9] object-contain" />
+              )}
               <div className="border-b border-[#e5ebee] bg-[#f4f7f9] px-5 pb-5 pt-12 sm:px-8 sm:pt-14">
                 <div className="mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#007cc3]">
                   <span className="h-[2px] w-6 bg-[#f2c92f]" />
-                  {selectedProduct.category}
+                  {selectedProduct.categoryName}
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center border border-[#d4e4ec] bg-white text-[#007cc3]">
-                    <selectedProduct.icon className="h-9 w-9" strokeWidth={1.35} aria-hidden="true" />
+                    {selectedProduct.imageUrl
+                      ? <Package className="h-8 w-8" strokeWidth={1.35} aria-hidden="true" />
+                      : (() => {
+                          const Icon = productIcon(selectedProduct);
+                          return <Icon className="h-9 w-9" strokeWidth={1.35} aria-hidden="true" />;
+                        })()}
                   </div>
                   <div className="pr-7">
                     <SheetHeader className="space-y-2 text-left">
@@ -378,7 +362,7 @@ export default function Loja() {
                     <Package className="h-4 w-4 text-[#007cc3]" aria-hidden="true" />
                     Detalhes do artigo
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-[#4f5f69]">{selectedProduct.detail}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#4f5f69]">{selectedProduct.description || selectedProduct.shortDescription}</p>
                   <div className="mt-4 flex items-center justify-between border-t border-[#dfe7eb] pt-3">
                     <span className="text-sm text-[#64737d]">Preço</span>
                     <span className="text-sm font-bold text-[#001d3d]">Sob consulta</span>

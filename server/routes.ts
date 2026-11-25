@@ -3,11 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertNewsletterSchema } from "@shared/schema";
 import { z } from "zod";
+import { registerStoreRoutes } from "./storeRoutes";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.use(registerStoreRoutes());
 
   app.post("/api/newsletter", async (req, res) => {
     try {
