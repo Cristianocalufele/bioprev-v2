@@ -3,11 +3,13 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { StoreCartProvider } from "@/lib/storeCart";
 import { lazy, Suspense, useEffect } from "react";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const Loja = lazy(() => import("@/pages/loja/Loja"));
+const ProductDetail = lazy(() => import("@/pages/loja/ProductDetail"));
 const Locations = lazy(() => import("@/pages/Locations"));
 const AllNationalAccounts = lazy(() => import("@/pages/national-accounts/AllNationalAccounts"));
 const NationalOverview = lazy(() => import("@/pages/national-accounts/Overview"));
@@ -103,6 +105,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/contact" component={Contact} />
         <Route path="/loja" component={Loja} />
+        <Route path="/loja/:slug" component={ProductDetail} />
         <Route path="/locations" component={Locations} />
         <Route path="/national-accounts" component={AllNationalAccounts} />
         <Route path="/national-accounts/overview" component={NationalOverview} />
@@ -133,10 +136,12 @@ function App() {
   return (
     <WouterRouter base={basePath}>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <StoreCartProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </StoreCartProvider>
       </QueryClientProvider>
     </WouterRouter>
   );

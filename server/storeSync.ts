@@ -140,7 +140,7 @@ export async function syncCodeCatalogToTursoAndCloudinary(options?: {
     if (!categoryRef) continue;
 
     const existing = await db.execute({
-      sql: "SELECT id, image_public_id FROM store_products WHERE slug = ?",
+      sql: "SELECT id, image_public_id, sku, price_aoa, stock_quantity, specs_json FROM store_products WHERE slug = ?",
       args: [product.slug],
     });
 
@@ -169,12 +169,32 @@ export async function syncCodeCatalogToTursoAndCloudinary(options?: {
       imagesAlreadyLinked += 1;
     }
 
+    const specsJson = JSON.stringify(product.specs);
+
     if (existingRow) {
       const existingId = String(existingRow.id);
+      const hasSku = Boolean(existingRow.sku && String(existingRow.sku).trim());
+      const hasPrice = existingRow.price_aoa !== null && existingRow.price_aoa !== undefined;
+      const hasStock = Number(existingRow.stock_quantity ?? 0) > 0;
+      const hasSpecs = Boolean(existingRow.specs_json && String(existingRow.specs_json) !== "[]");
+
       await db.execute({
         sql: `UPDATE store_products
-              SET name = ?, category_id = ?, short_description = ?, description = ?,
-                  image_public_id = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
+              SET name = ?,
+                  category_id = ?,
+                  short_description = ?,
+                  description = ?,
+                  image_public_id = ?,
+                  sku = ?,
+                  price_aoa = ?,
+                  unit_label = ?,
+                  stock_quantity = ?,
+                  low_stock_threshold = ?,
+                  stock_mode = ?,
+                  is_featured = ?,
+                  specs_json = ?,
+                  sort_order = ?,
+                  updated_at = CURRENT_TIMESTAMP
               WHERE id = ?`,
         args: [
           product.name,
@@ -182,6 +202,14 @@ export async function syncCodeCatalogToTursoAndCloudinary(options?: {
           product.short,
           product.description,
           finalPublicId,
+          hasSku ? String(existingRow.sku) : product.sku,
+          hasPrice ? Number(existingRow.price_aoa) : product.priceAoa,
+          product.unitLabel,
+          hasStock ? Number(existingRow.stock_quantity) : product.stockQuantity,
+          product.lowStockThreshold,
+          hasStock ? "stock" : product.stockMode,
+          product.isFeatured ? 1 : 0,
+          hasSpecs ? String(existingRow.specs_json) : specsJson,
           product.sortOrder,
           existingId,
         ],
@@ -201,15 +229,25 @@ export async function syncCodeCatalogToTursoAndCloudinary(options?: {
       const newProductId = randomUUID();
       await db.execute({
         sql: `INSERT INTO store_products
-                (id, name, slug, category_id, short_description, description, image_public_id, is_active, sort_order)
-              VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+                (id, name, slug, sku, category_id, short_description, description,
+                 price_aoa, unit_label, stock_quantity, low_stock_threshold, stock_mode,
+                 is_featured, specs_json, image_public_id, is_active, sort_order)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
         args: [
           newProductId,
           product.name,
           product.slug,
+          product.sku,
           categoryRef.id,
           product.short,
           product.description,
+          product.priceAoa,
+          product.unitLabel,
+          product.stockQuantity,
+          product.lowStockThreshold,
+          product.stockMode,
+          product.isFeatured ? 1 : 0,
+          specsJson,
           finalPublicId,
           product.sortOrder,
         ],

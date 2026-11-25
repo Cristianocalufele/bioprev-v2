@@ -5,14 +5,17 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowUpRight,
+  BarChart3,
   Boxes,
   Check,
   CheckCircle2,
   ClipboardList,
   CloudUpload,
   Database,
+  Download,
   Eye,
   EyeOff,
+  FileText,
   ImagePlus,
   KeyRound,
   LayoutGrid,
@@ -25,12 +28,14 @@ import {
   Pencil,
   Phone,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   ShieldCheck,
   ShoppingBag,
   Trash2,
   Upload,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -43,33 +48,62 @@ import {
 import {
   orderSources,
   orderStatuses,
+  type ProductSpecItem,
+  type ProductStockMode,
   type StoreCatalog,
   type StoreCategory,
+  type StoreCustomer,
   type StoreOrder,
   type StoreOrderSource,
   type StoreOrderStatus,
   type StoreProduct,
 } from "@shared/store";
 import {
+  fetchAdminCustomers,
   getAdminToken,
   runStoreSync,
   setAdminToken,
   storeApi,
+  uploadProductDatasheet,
   uploadProductImage,
   type AdminAccess,
   type AdminAuthStatus,
   type StoreAdminConfig,
   type StoreSyncResult,
 } from "@/lib/storeApi";
+import { formatKwanza, stockStatusInfo } from "@/lib/storeFormat";
 import { resolveProductImage } from "@/lib/storeImages";
+import { AdminAnalyticsTab } from "./AdminAnalyticsTab";
+import { AdminCustomersTab } from "./AdminCustomersTab";
+import { AdminOrderDocumentDialog } from "./AdminOrderDocumentDialog";
+
+type AdminTab = "products" | "categories" | "orders" | "customers" | "metrics" | "sync";
+
+type GalleryImageDraft = {
+  imagePublicId: string;
+  imageUrl: string | null;
+  altText: string;
+  sortOrder: number;
+};
 
 type ProductDraft = {
   name: string;
   slug: string;
+  sku: string;
   categoryId: string;
   shortDescription: string;
   description: string;
+  priceAoa: number | null;
+  unitLabel: string;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockMode: ProductStockMode;
+  isFeatured: boolean;
+  specs: ProductSpecItem[];
   imagePublicId: string | null;
+  galleryImages: GalleryImageDraft[];
+  datasheetPublicId: string | null;
+  datasheetExternalUrl: string;
   isActive: boolean;
   sortOrder: number;
 };
@@ -82,10 +116,18 @@ type CategoryDraft = {
   sortOrder: number;
 };
 
-type OrderDraft = {
+type OrderItemDraft = {
   productId: string | null;
   productName: string;
+  sku: string;
   quantity: number;
+  unitPriceAoa: number | null;
+  unitLabel: string;
+};
+
+type OrderDraft = {
+  customerId: string | null;
+  items: OrderItemDraft[];
   customerName: string;
   telephone: string;
   address: string;
@@ -151,8 +193,58 @@ function formatDateTime(value: string): string {
 function whatsappHrefForOrder(order: StoreOrder): string {
   const digits = order.telephone.replace(/\D/g, "");
   const target = digits.length >= 9 ? (digits.startsWith("244") ? digits : `244${digits}`) : "244928737888";
-  const text = `Olá${order.customerName ? ` ${order.customerName}` : ""}, aqui é a Bioprev Angola sobre o seu pedido ${order.reference} (${order.productName} x${order.quantity}).`;
+  const itemsText = order.items.map((i) => `${i.productName} ×${i.quantity}`).join(", ");
+  const text = `Olá${order.customerName ? ` ${order.customerName}` : ""}, aqui é a Bioprev Angola sobre o seu pedido ${order.reference} (${itemsText}).`;
   return `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
+}
+
+function sanitizeCsvCell(value: string | number | null | undefined): string {
+  const raw = value === null || value === undefined ? "" : String(value);
+  const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+function downloadOrdersCsv(orders: StoreOrder[]) {
+  const header = [
+    "Referência",
+    "Data",
+    "Estado",
+    "Origem",
+    "Cliente",
+    "Telefone",
+    "Morada",
+    "Cidade",
+    "Artigos",
+    "Quantidade Total",
+    "Total (Kz)",
+    "Notas de entrega",
+    "Notas internas",
+  ];
+  const rows = orders.map((o) => [
+    o.reference,
+    formatDateTime(o.createdAt),
+    orderStatusLabel[o.status],
+    orderSourceLabel[o.source],
+    o.customerName,
+    o.telephone,
+    o.address,
+    o.city,
+    o.items.map((i) => `${i.productName} x${i.quantity}`).join("; "),
+    o.quantity,
+    o.totalAoa !== null ? o.totalAoa : "Sob consulta",
+    o.deliveryNotes,
+    o.adminNotes,
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(sanitizeCsvCell).join(";")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `pedidos-bioprev-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function LoadingState() {
@@ -361,8 +453,9 @@ export function AdminPage() {
 
 function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignOut: () => void }) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"products" | "categories" | "orders" | "sync">("products");
+  const [activeTab, setActiveTab] = useState<AdminTab>("products");
   const [productView, setProductView] = useState<"grid" | "list">("grid");
+  const [productStockFilter, setProductStockFilter] = useState<"all" | "low" | "out" | "featured">("all");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -381,8 +474,11 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
   const [productFormError, setProductFormError] = useState("");
   const [productSaving, setProductSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [datasheetUploading, setDatasheetUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [stagedImagePublicId, setStagedImagePublicId] = useState<string | null>(null);
+  const [stagedImagePublicIds, setStagedImagePublicIds] = useState<string[]>([]);
+  const [stagedDatasheetPublicId, setStagedDatasheetPublicId] = useState<string | null>(null);
 
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -396,6 +492,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
   const [orderSaving, setOrderSaving] = useState(false);
   const [orderFormError, setOrderFormError] = useState("");
 
+  const [documentOrder, setDocumentOrder] = useState<StoreOrder | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget>(null);
   const [confirmDeleting, setConfirmDeleting] = useState(false);
 
@@ -414,32 +511,44 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     queryFn: () => storeApi<StoreOrder[]>("/api/admin/orders"),
     retry: false,
   });
+  const customersQuery = useQuery({
+    queryKey: ["store-admin", "customers"],
+    queryFn: fetchAdminCustomers,
+    retry: false,
+  });
 
   const catalog = catalogQuery.data;
   const categories = catalog?.categories ?? [];
   const products = catalog?.products ?? [];
   const orders = ordersQuery.data ?? [];
+  const customers = customersQuery.data ?? [];
 
   const visibleProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("pt");
     return products.filter((product) => {
       const matchesCategory = categoryFilter === "all" || product.categoryId === categoryFilter;
+      const matchesStockFilter =
+        productStockFilter === "all" ||
+        (productStockFilter === "low" && product.stockStatus === "stock_reduzido") ||
+        (productStockFilter === "out" && product.stockStatus === "esgotado") ||
+        (productStockFilter === "featured" && product.isFeatured);
       const matchesSearch =
         !normalizedSearch ||
-        `${product.name} ${product.categoryName} ${product.shortDescription} ${product.slug}`
+        `${product.name} ${product.sku} ${product.categoryName} ${product.shortDescription} ${product.slug}`
           .toLocaleLowerCase("pt")
           .includes(normalizedSearch);
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesStockFilter && matchesSearch;
     });
-  }, [categoryFilter, products, search]);
+  }, [categoryFilter, productStockFilter, products, search]);
 
   const visibleOrders = useMemo(() => {
     const normalizedSearch = orderSearch.trim().toLocaleLowerCase("pt");
     return orders.filter((order) => {
       const matchesStatus = orderStatusFilter === "all" || order.status === orderStatusFilter;
+      const itemsText = order.items.map((i) => `${i.productName} ${i.sku}`).join(" ");
       const matchesSearch =
         !normalizedSearch ||
-        `${order.reference} ${order.productName} ${order.customerName} ${order.telephone} ${order.address} ${order.city}`
+        `${order.reference} ${order.productName} ${itemsText} ${order.customerName} ${order.telephone} ${order.address} ${order.city}`
           .toLocaleLowerCase("pt")
           .includes(normalizedSearch);
       return matchesStatus && matchesSearch;
@@ -450,24 +559,41 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["store-admin", "catalog"] }),
       queryClient.invalidateQueries({ queryKey: ["store", "catalog"] }),
+      queryClient.invalidateQueries({ queryKey: ["store-admin", "metrics"] }),
     ]);
   };
 
   const refreshOrders = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["store-admin", "orders"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["store-admin", "orders"] }),
+      queryClient.invalidateQueries({ queryKey: ["store-admin", "customers"] }),
+      queryClient.invalidateQueries({ queryKey: ["store-admin", "metrics"] }),
+      queryClient.invalidateQueries({ queryKey: ["store-admin", "catalog"] }),
+      queryClient.invalidateQueries({ queryKey: ["store", "catalog"] }),
+    ]);
   };
 
-  const clearStagedImage = async () => {
-    if (!stagedImagePublicId) return;
-    try {
-      await storeApi("/api/admin/media", {
-        method: "DELETE",
-        body: JSON.stringify({ publicId: stagedImagePublicId }),
-      });
-    } catch {
-      // A failed cleanup does not prevent the administrator from continuing.
+  const cleanupStagedAssets = async (keepPublicIds: Set<string>, keepDatasheetId: string | null) => {
+    for (const id of stagedImagePublicIds) {
+      if (keepPublicIds.has(id)) continue;
+      try {
+        await storeApi("/api/admin/media", { method: "DELETE", body: JSON.stringify({ publicId: id }) });
+      } catch {
+        // Ignore cleanup failure
+      }
     }
-    setStagedImagePublicId(null);
+    if (stagedDatasheetPublicId && stagedDatasheetPublicId !== keepDatasheetId) {
+      try {
+        await storeApi("/api/admin/datasheet", {
+          method: "DELETE",
+          body: JSON.stringify({ publicId: stagedDatasheetPublicId }),
+        });
+      } catch {
+        // Ignore cleanup failure
+      }
+    }
+    setStagedImagePublicIds([]);
+    setStagedDatasheetPublicId(null);
   };
 
   const openNewProduct = () => {
@@ -475,14 +601,27 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     setProductDraft({
       name: "",
       slug: "",
+      sku: "",
       categoryId: categories.find((category) => category.isActive)?.id ?? "",
       shortDescription: "",
       description: "",
+      priceAoa: null,
+      unitLabel: "unidade",
+      stockQuantity: 0,
+      lowStockThreshold: 5,
+      stockMode: "por_encomenda",
+      isFeatured: false,
+      specs: [],
       imagePublicId: null,
+      galleryImages: [],
+      datasheetPublicId: null,
+      datasheetExternalUrl: "",
       isActive: true,
       sortOrder: 0,
     });
     setImagePreview(null);
+    setStagedImagePublicIds([]);
+    setStagedDatasheetPublicId(null);
     setProductFormError("");
     setProductDialogOpen(true);
   };
@@ -492,20 +631,38 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     setProductDraft({
       name: product.name,
       slug: product.slug,
+      sku: product.sku,
       categoryId: product.categoryId,
       shortDescription: product.shortDescription,
       description: product.description,
+      priceAoa: product.priceAoa,
+      unitLabel: product.unitLabel,
+      stockQuantity: product.stockQuantity,
+      lowStockThreshold: product.lowStockThreshold,
+      stockMode: product.stockMode,
+      isFeatured: product.isFeatured,
+      specs: product.specs.map((s) => ({ ...s })),
       imagePublicId: product.imagePublicId,
+      galleryImages: product.galleryImages.map((g) => ({
+        imagePublicId: g.imagePublicId,
+        imageUrl: g.imageUrl,
+        altText: g.altText,
+        sortOrder: g.sortOrder,
+      })),
+      datasheetPublicId: product.datasheetPublicId,
+      datasheetExternalUrl: product.datasheetExternalUrl,
       isActive: product.isActive,
       sortOrder: product.sortOrder,
     });
     setImagePreview(product.imageUrl);
+    setStagedImagePublicIds([]);
+    setStagedDatasheetPublicId(null);
     setProductFormError("");
     setProductDialogOpen(true);
   };
 
   const closeProductDialog = async () => {
-    await clearStagedImage();
+    await cleanupStagedAssets(new Set(), null);
     setProductDialogOpen(false);
     setProductDraft(null);
     setImagePreview(null);
@@ -518,23 +675,37 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     setProductSaving(true);
     setProductFormError("");
     try {
+      const payload = {
+        ...productDraft,
+        specs: productDraft.specs.filter((s) => s.label.trim() && s.value.trim()),
+        galleryImages: productDraft.galleryImages.map((g, idx) => ({
+          imagePublicId: g.imagePublicId,
+          altText: g.altText,
+          sortOrder: idx,
+        })),
+      };
+
       const result = await storeApi<StoreProduct & { imageCleanupWarning?: boolean }>(
         editingProductId ? `/api/admin/products/${editingProductId}` : "/api/admin/products",
         {
           method: editingProductId ? "PUT" : "POST",
-          body: JSON.stringify(productDraft),
+          body: JSON.stringify(payload),
         },
       );
-      const uploadedImageWasSaved = stagedImagePublicId === result.imagePublicId;
-      if (stagedImagePublicId && !uploadedImageWasSaved) await clearStagedImage();
-      else setStagedImagePublicId(null);
+
+      const savedIds = new Set<string>([
+        ...(result.imagePublicId ? [result.imagePublicId] : []),
+        ...result.galleryImages.map((g) => g.imagePublicId),
+      ]);
+      await cleanupStagedAssets(savedIds, result.datasheetPublicId);
+
       setProductDialogOpen(false);
       setProductDraft(null);
       setImagePreview(null);
       setNotice({
         kind: "success",
         text: result.imageCleanupWarning
-          ? "Artigo guardado. Uma imagem antiga não foi removida da Cloudinary."
+          ? "Artigo guardado. Um ficheiro antigo não foi removido da Cloudinary."
           : editingProductId ? "Artigo actualizado com sucesso." : "Artigo adicionado ao catálogo da loja.",
       });
       await refreshCatalog();
@@ -551,20 +722,9 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     setProductFormError("");
     try {
       const uploaded = await uploadProductImage(file);
-      const previousStagedId = stagedImagePublicId;
       setProductDraft((current) => current ? { ...current, imagePublicId: uploaded.publicId } : current);
       setImagePreview(uploaded.imageUrl);
-      setStagedImagePublicId(uploaded.publicId);
-      if (previousStagedId) {
-        try {
-          await storeApi("/api/admin/media", {
-            method: "DELETE",
-            body: JSON.stringify({ publicId: previousStagedId }),
-          });
-        } catch {
-          // Keep the newer image selected.
-        }
-      }
+      setStagedImagePublicIds((prev) => [...prev, uploaded.publicId]);
     } catch (error) {
       setProductFormError(apiError(error, "Não foi possível enviar a imagem."));
     } finally {
@@ -572,10 +732,49 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     }
   };
 
-  const removeProductImage = async () => {
-    setProductDraft((current) => current ? { ...current, imagePublicId: null } : current);
-    setImagePreview(null);
-    await clearStagedImage();
+  const handleGalleryImageSelected = async (file?: File) => {
+    if (!file || !productDraft) return;
+    setGalleryUploading(true);
+    setProductFormError("");
+    try {
+      const uploaded = await uploadProductImage(file);
+      setProductDraft((current) =>
+        current
+          ? {
+              ...current,
+              galleryImages: [
+                ...current.galleryImages,
+                {
+                  imagePublicId: uploaded.publicId,
+                  imageUrl: uploaded.imageUrl,
+                  altText: current.name,
+                  sortOrder: current.galleryImages.length,
+                },
+              ],
+            }
+          : current,
+      );
+      setStagedImagePublicIds((prev) => [...prev, uploaded.publicId]);
+    } catch (error) {
+      setProductFormError(apiError(error, "Não foi possível enviar a imagem da galeria."));
+    } finally {
+      setGalleryUploading(false);
+    }
+  };
+
+  const handleDatasheetSelected = async (file?: File) => {
+    if (!file || !productDraft) return;
+    setDatasheetUploading(true);
+    setProductFormError("");
+    try {
+      const uploaded = await uploadProductDatasheet(file);
+      setProductDraft((current) => (current ? { ...current, datasheetPublicId: uploaded.publicId } : current));
+      setStagedDatasheetPublicId(uploaded.publicId);
+    } catch (error) {
+      setProductFormError(apiError(error, "Não foi possível enviar a ficha técnica PDF."));
+    } finally {
+      setDatasheetUploading(false);
+    }
   };
 
   const openNewCategory = () => {
@@ -622,20 +821,28 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     }
   };
 
-  const openNewOrder = () => {
+  const openNewOrder = (preselectedCustomer?: StoreCustomer) => {
     const firstProduct = products[0];
     setEditingOrderId(null);
     setOrderDraft({
-      productId: firstProduct?.id ?? null,
-      productName: firstProduct?.name ?? "",
-      quantity: 1,
-      customerName: "",
-      telephone: "",
-      address: "",
-      city: "",
+      customerId: preselectedCustomer?.id ?? null,
+      items: [
+        {
+          productId: firstProduct?.id ?? null,
+          productName: firstProduct?.name ?? "",
+          sku: firstProduct?.sku ?? "",
+          quantity: 1,
+          unitPriceAoa: firstProduct?.priceAoa ?? null,
+          unitLabel: firstProduct?.unitLabel ?? "unidade",
+        },
+      ],
+      customerName: preselectedCustomer?.name ?? "",
+      telephone: preselectedCustomer?.telephone ?? "",
+      address: preselectedCustomer?.defaultAddress ?? "",
+      city: preselectedCustomer?.defaultCity ?? "",
       deliveryNotes: "",
       status: "novo",
-      source: "whatsapp_direto",
+      source: preselectedCustomer ? "admin" : "whatsapp_direto",
       adminNotes: "",
     });
     setOrderFormError("");
@@ -645,9 +852,15 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
   const openEditOrder = (order: StoreOrder) => {
     setEditingOrderId(order.id);
     setOrderDraft({
-      productId: order.productId,
-      productName: order.productName,
-      quantity: order.quantity,
+      customerId: order.customerId,
+      items: order.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPriceAoa: item.unitPriceAoa,
+        unitLabel: item.unitLabel,
+      })),
       customerName: order.customerName,
       telephone: order.telephone,
       address: order.address,
@@ -667,11 +880,29 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
     setOrderSaving(true);
     setOrderFormError("");
     try {
+      const validItems = orderDraft.items.filter((i) => i.productName.trim().length >= 2);
+      if (validItems.length === 0) {
+        setOrderFormError("Adicione pelo menos um artigo válido ao pedido.");
+        setOrderSaving(false);
+        return;
+      }
+
       await storeApi<StoreOrder>(
         editingOrderId ? `/api/admin/orders/${editingOrderId}` : "/api/admin/orders",
         {
           method: editingOrderId ? "PATCH" : "POST",
-          body: JSON.stringify(orderDraft),
+          body: JSON.stringify({
+            customerId: orderDraft.customerId,
+            items: validItems,
+            customerName: orderDraft.customerName,
+            telephone: orderDraft.telephone,
+            address: orderDraft.address,
+            city: orderDraft.city,
+            deliveryNotes: orderDraft.deliveryNotes,
+            status: orderDraft.status,
+            source: orderDraft.source,
+            adminNotes: orderDraft.adminNotes,
+          }),
         },
       );
       setOrderDialogOpen(false);
@@ -694,7 +925,10 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      setNotice({ kind: "success", text: `Estado do pedido ${order.reference} alterado para “${orderStatusLabel[status]}”.` });
+      setNotice({
+        kind: "success",
+        text: `Estado do pedido ${order.reference} alterado para “${orderStatusLabel[status]}”.`,
+      });
       await refreshOrders();
     } catch (error) {
       setNotice({ kind: "error", text: apiError(error, "Não foi possível actualizar o estado do pedido.") });
@@ -713,7 +947,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
         setNotice({
           kind: result.imageCleanupWarning ? "error" : "success",
           text: result.imageCleanupWarning
-            ? "Artigo apagado, mas não foi possível remover a imagem da Cloudinary."
+            ? "Artigo apagado, mas um ficheiro não foi removido da Cloudinary."
             : "Artigo apagado do catálogo.",
         });
         await refreshCatalog();
@@ -756,7 +990,9 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
   };
 
   const activeProductCount = products.filter((product) => product.isActive).length;
-  const activeCategoryCount = categories.filter((category) => category.isActive).length;
+  const lowOrOutStockCount = products.filter(
+    (p) => p.stockStatus === "stock_reduzido" || p.stockStatus === "esgotado",
+  ).length;
   const newOrdersCount = orders.filter((order) => order.status === "novo").length;
   const editingProduct = editingProductId ? products.find((p) => p.id === editingProductId) ?? null : null;
   const defaultProductPreview = editingProduct && !imagePreview ? resolveProductImage(editingProduct) : null;
@@ -764,9 +1000,9 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
   const sectionMeta =
     activeTab === "products"
       ? {
-          eyebrow: "Catálogo da loja",
+          eyebrow: "Catálogo e inventário",
           title: "Artigos",
-          description: "Adicione, edite, publique ou remova os produtos apresentados na loja Bioprev.",
+          description: "Gira preços em Kwanzas, SKU, stock, galeria de fotos e fichas técnicas dos equipamentos.",
         }
       : activeTab === "categories"
         ? {
@@ -778,15 +1014,27 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
           ? {
               eyebrow: "Encomendas e WhatsApp",
               title: "Pedidos",
-              description: "Acompanhe os pedidos enviados pela loja ou registe encomendas recebidas directamente pelo WhatsApp.",
+              description: "Acompanhe pedidos multi-artigo, emita orçamentos ou guias de entrega em PDF e exporte CSV.",
             }
-          : {
-              eyebrow: "Base de dados e armazenamento",
-              title: "Sincronização de dados",
-              description: "Transfira as categorias e artigos do código para o Turso, envie as imagens para a Cloudinary e ligue automaticamente todas as relações.",
-            };
+          : activeTab === "customers"
+            ? {
+                eyebrow: "Carteira de contactos",
+                title: "Clientes",
+                description: "Consulte clientes e empresas recorrentes consolidados pelo telefone e o histórico de pedidos.",
+              }
+            : activeTab === "metrics"
+              ? {
+                  eyebrow: "Análise de resultados",
+                  title: "Métricas",
+                  description: "Acompanhe volume de pedidos, cidades com maior procura, artigos mais pedidos e inventário.",
+                }
+              : {
+                  eyebrow: "Base de dados e armazenamento",
+                  title: "Sincronização de dados",
+                  description: "Transfira as categorias e artigos do código para o Turso, envie as imagens para a Cloudinary e ligue automaticamente todas as relações.",
+                };
 
-  const selectTab = (tab: "products" | "categories" | "orders" | "sync") => {
+  const selectTab = (tab: AdminTab) => {
     setActiveTab(tab);
     setMobileNavOpen(false);
   };
@@ -886,6 +1134,43 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
           <button
             type="button"
             role="tab"
+            aria-selected={activeTab === "customers"}
+            onClick={() => selectTab("customers")}
+            className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm transition-colors ${
+              activeTab === "customers"
+                ? "border-r-2 border-r-[#007cc3] bg-[#eff6fa] font-semibold text-[#001d3d]"
+                : "font-medium text-[#4f606a] hover:bg-[#f4f7f9] hover:text-[#001d3d]"
+            }`}
+          >
+            <span className="inline-flex items-center gap-3 whitespace-nowrap">
+              <Users className={`h-4 w-4 ${activeTab === "customers" ? "text-[#007cc3]" : "text-[#6c7b84]"}`} />
+              Clientes
+            </span>
+            <span className="text-xs font-semibold tabular-nums text-[#55656f]">
+              {customersQuery.data ? customers.length : "—"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "metrics"}
+            onClick={() => selectTab("metrics")}
+            className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm transition-colors ${
+              activeTab === "metrics"
+                ? "border-r-2 border-r-[#007cc3] bg-[#eff6fa] font-semibold text-[#001d3d]"
+                : "font-medium text-[#4f606a] hover:bg-[#f4f7f9] hover:text-[#001d3d]"
+            }`}
+          >
+            <span className="inline-flex items-center gap-3 whitespace-nowrap">
+              <BarChart3 className={`h-4 w-4 ${activeTab === "metrics" ? "text-[#007cc3]" : "text-[#6c7b84]"}`} />
+              Métricas
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
             aria-selected={activeTab === "sync"}
             onClick={() => selectTab("sync")}
             className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm transition-colors ${
@@ -954,10 +1239,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
 
       {mobileNavOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden" role="dialog" aria-modal="true" aria-label="Menu de administração">
-          <div
-            className="fixed inset-0 bg-[#001d3d]/45"
-            onClick={() => setMobileNavOpen(false)}
-          />
+          <div className="fixed inset-0 bg-[#001d3d]/45" onClick={() => setMobileNavOpen(false)} />
           <aside className="relative z-10 h-full w-72 max-w-[85vw] border-r border-[#e1e8ec] bg-white shadow-xl">
             {sidebarContent}
           </aside>
@@ -966,12 +1248,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3 border-b border-[#e1e8ec] bg-white px-4 py-3 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileNavOpen(true)}
-            className={secondaryClass}
-            aria-label="Abrir menu lateral"
-          >
+          <button type="button" onClick={() => setMobileNavOpen(true)} className={secondaryClass} aria-label="Abrir menu lateral">
             <Menu className="h-4 w-4" /> Menu
           </button>
           <span className="text-sm font-semibold text-[#001d3d]">{sectionMeta.title}</span>
@@ -990,7 +1267,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                 {sectionMeta.description}
               </p>
             </div>
-            <div className="shrink-0">
+            <div className="flex flex-wrap gap-2.5 shrink-0">
               {activeTab === "products" ? (
                 <button type="button" className={`${actionClass} whitespace-nowrap`} onClick={openNewProduct} disabled={!catalogQuery.data || categories.length === 0}>
                   <Plus className="h-4 w-4" /> Adicionar artigo
@@ -1000,10 +1277,20 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   <Plus className="h-4 w-4" /> Adicionar categoria
                 </button>
               ) : activeTab === "orders" ? (
-                <button type="button" className={`${actionClass} whitespace-nowrap`} onClick={openNewOrder}>
-                  <Plus className="h-4 w-4" /> Registar pedido
-                </button>
-              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={`${secondaryClass} whitespace-nowrap`}
+                    onClick={() => downloadOrdersCsv(visibleOrders)}
+                    disabled={visibleOrders.length === 0}
+                  >
+                    <Download className="h-4 w-4" /> Exportar CSV
+                  </button>
+                  <button type="button" className={`${actionClass} whitespace-nowrap`} onClick={() => openNewOrder()}>
+                    <Plus className="h-4 w-4" /> Registar pedido
+                  </button>
+                </>
+              ) : activeTab === "sync" ? (
                 <button
                   type="button"
                   className={`${secondaryClass} whitespace-nowrap`}
@@ -1013,7 +1300,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   <RefreshCw className={`h-4 w-4 ${configQuery.isFetching ? "animate-spin" : ""}`} />
                   {configQuery.isFetching ? "A verificar…" : "Verificar ligações"}
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -1051,7 +1338,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   </p>
                   <p className="mt-1 text-xs leading-5 text-[#5c6c76]">
                     {configQuery.data.tursoConnected
-                      ? "Os artigos, categorias e pedidos estão a ser persistidos directamente na base de dados Turso."
+                      ? "Artigos, categorias, stock, clientes e pedidos estão a ser persistidos no Turso."
                       : configQuery.data.tursoError ?? "A loja funciona em memória. Defina TURSO_DATABASE_URL e TURSO_AUTH_TOKEN no Vercel."}
                   </p>
                 </div>
@@ -1072,7 +1359,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   </p>
                   <p className="mt-1 text-xs leading-5 text-[#5c6c76]">
                     {configQuery.data.cloudinaryConnected
-                      ? "O envio e a remoção de imagens dos artigos estão activos na pasta bioprev/products."
+                      ? "Galeria de imagens e fichas técnicas PDF activos na Cloudinary."
                       : configQuery.data.cloudinaryError ?? "Defina CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY e CLOUDINARY_API_SECRET no Vercel."}
                   </p>
                 </div>
@@ -1083,23 +1370,17 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
           <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               icon={<Package className="h-5 w-5" />}
-              label="Artigos no catálogo"
-              value={catalogQuery.data ? String(products.length) : "—"}
-              active={activeTab === "products"}
-              onClick={() => selectTab("products")}
-            />
-            <StatCard
-              icon={<Check className="h-5 w-5" />}
               label="Artigos publicados"
-              value={catalogQuery.data ? String(activeProductCount) : "—"}
-              onClick={() => selectTab("products")}
+              value={catalogQuery.data ? `${activeProductCount} / ${products.length}` : "—"}
+              active={activeTab === "products" && productStockFilter === "all"}
+              onClick={() => { setProductStockFilter("all"); selectTab("products"); }}
             />
             <StatCard
-              icon={<Boxes className="h-5 w-5" />}
-              label="Categorias activas"
-              value={catalogQuery.data ? String(activeCategoryCount) : "—"}
-              active={activeTab === "categories"}
-              onClick={() => selectTab("categories")}
+              icon={<AlertCircle className="h-5 w-5" />}
+              label="Alertas de stock"
+              value={catalogQuery.data ? String(lowOrOutStockCount) : "—"}
+              active={activeTab === "products" && productStockFilter === "low"}
+              onClick={() => { setProductStockFilter("low"); selectTab("products"); }}
             />
             <StatCard
               icon={<ClipboardList className="h-5 w-5" />}
@@ -1108,10 +1389,27 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
               active={activeTab === "orders"}
               onClick={() => selectTab("orders")}
             />
+            <StatCard
+              icon={<Users className="h-5 w-5" />}
+              label="Clientes registados"
+              value={customersQuery.data ? String(customers.length) : "—"}
+              active={activeTab === "customers"}
+              onClick={() => selectTab("customers")}
+            />
           </section>
 
           <section className="border border-[#dce4e9] bg-white">
-            {activeTab === "sync" ? (
+            {activeTab === "customers" ? (
+              <AdminCustomersTab
+                onCreateOrderForCustomer={(customer) => {
+                  selectTab("orders");
+                  openNewOrder(customer);
+                }}
+                onNotice={setNotice}
+              />
+            ) : activeTab === "metrics" ? (
+              <AdminAnalyticsTab />
+            ) : activeTab === "sync" ? (
               <div className="divide-y divide-[#e8edef]">
                 <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
                   <div className="border border-[#dce4e9] bg-[#fafcfd] p-5">
@@ -1122,7 +1420,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                         </div>
                         <div>
                           <h2 className="text-base font-semibold text-[#001d3d]">Turso (Base de Dados)</h2>
-                          <p className="text-xs text-[#61717b]">Tabelas, categorias, artigos e relações</p>
+                          <p className="text-xs text-[#61717b]">Tabelas, categorias, artigos, stock e relações</p>
                         </div>
                       </div>
                       <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
@@ -1183,7 +1481,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                           : "Catálogo base da loja"}
                       </h3>
                       <p className="max-w-2xl text-sm leading-6 text-[#5f6e78]">
-                        Ao executar a sincronização, o sistema cria ou actualiza as categorias no Turso, envia as fotografias do projecto para a Cloudinary e grava cada artigo no banco de dados já ligado à respectiva categoria e imagem.
+                        Ao executar a sincronização, o sistema cria ou actualiza as categorias, SKU, preços e fichas técnicas no Turso, envia as fotografias do projecto para a Cloudinary e liga todas as relações.
                       </p>
                       <label className="inline-flex items-center gap-2.5 pt-2 text-xs font-medium text-[#455660]">
                         <input
@@ -1236,9 +1534,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   <div className="p-5 sm:p-6">
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <h3 className="text-base font-semibold text-[#001d3d]">Resultado da última sincronização</h3>
-                      <span className="text-xs tabular-nums text-[#64737d]">
-                        {formatDateTime(syncResult.syncedAt)}
-                      </span>
+                      <span className="text-xs tabular-nums text-[#64737d]">{formatDateTime(syncResult.syncedAt)}</span>
                     </div>
 
                     <div className="mb-5 grid gap-3 sm:grid-cols-3">
@@ -1267,12 +1563,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                         <div key={item.slug} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3">
                             {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.name}
-                                referrerPolicy="no-referrer"
-                                className="aspect-[4/3] w-16 shrink-0 border border-[#dce4e9] bg-[#f4f7f9] object-cover"
-                              />
+                              <img src={item.imageUrl} alt={item.name} referrerPolicy="no-referrer" className="aspect-[4/3] w-16 shrink-0 border border-[#dce4e9] bg-[#f4f7f9] object-cover" />
                             ) : (
                               <div className="flex aspect-[4/3] w-16 shrink-0 items-center justify-center border border-[#dce4e9] bg-[#f4f7f9] text-[#007cc3]">
                                 <Package className="h-5 w-5" />
@@ -1283,10 +1574,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                               <p className="text-xs text-[#5d6d77]">
                                 Categoria: <strong className="text-[#007cc3]">{item.categoryName}</strong>
                                 {item.imagePublicId && (
-                                  <>
-                                    {" · "}
-                                    <span className="font-mono text-[11px]">{item.imagePublicId}</span>
-                                  </>
+                                  <> · <span className="font-mono text-[11px]">{item.imagePublicId}</span></>
                                 )}
                               </p>
                             </div>
@@ -1364,6 +1652,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                           key={order.id}
                           order={order}
                           onStatusChange={(status) => void updateOrderStatus(order, status)}
+                          onOpenDocument={() => setDocumentOrder(order)}
                           onEdit={() => openEditOrder(order)}
                           onDelete={() => setConfirmTarget({ kind: "order", item: order })}
                         />
@@ -1381,7 +1670,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                           : "Todos os pedidos enviados na loja (mesmo quando seguem para o WhatsApp) aparecem aqui automaticamente, ou pode registar um pedido manual."}
                       </p>
                       {!orders.length && (
-                        <button type="button" className={`${actionClass} mt-5`} onClick={openNewOrder}>
+                        <button type="button" className={`${actionClass} mt-5`} onClick={() => openNewOrder()}>
                           <Plus className="h-4 w-4" /> Registar primeiro pedido
                         </button>
                       )}
@@ -1412,51 +1701,87 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
               </div>
             ) : activeTab === "products" ? (
               <>
-                <div className="flex flex-col gap-3 border-b border-[#e7ecef] p-4 sm:flex-row sm:items-center sm:px-6">
-                  <label className="relative block flex-1">
-                    <span className="sr-only">Pesquisar artigos</span>
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#87939a]" />
-                    <input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Pesquisar artigos…"
-                      className={`${fieldClass} mt-0 pl-10`}
-                    />
-                  </label>
-                  <label className="sm:w-52">
-                    <span className="sr-only">Filtrar por categoria</span>
-                    <select
-                      value={categoryFilter}
-                      onChange={(event) => setCategoryFilter(event.target.value)}
-                      className={`${fieldClass} mt-0`}
-                    >
-                      <option value="all">Todas as categorias</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>{category.name}</option>
+                <div className="space-y-3 border-b border-[#e7ecef] p-4 sm:px-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <label className="relative block flex-1">
+                      <span className="sr-only">Pesquisar artigos</span>
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#87939a]" />
+                      <input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Pesquisar por nome, código SKU ou descrição…"
+                        className={`${fieldClass} mt-0 pl-10`}
+                      />
+                    </label>
+                    <label className="sm:w-52">
+                      <span className="sr-only">Filtrar por categoria</span>
+                      <select
+                        value={categoryFilter}
+                        onChange={(event) => setCategoryFilter(event.target.value)}
+                        className={`${fieldClass} mt-0`}
+                      >
+                        <option value="all">Todas as categorias</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>{category.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="flex shrink-0 border border-[#cbd6dc] bg-[#f8fafb] p-0.5" role="group" aria-label="Modo de visualização">
+                      <button
+                        type="button"
+                        onClick={() => setProductView("grid")}
+                        aria-pressed={productView === "grid"}
+                        className={`inline-flex min-h-9 items-center gap-1.5 px-3 text-xs font-semibold transition-colors ${
+                          productView === "grid" ? "bg-white text-[#001d3d] shadow-xs" : "text-[#5f6e78] hover:text-[#001d3d]"
+                        }`}
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" /> Grelha
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductView("list")}
+                        aria-pressed={productView === "list"}
+                        className={`inline-flex min-h-9 items-center gap-1.5 px-3 text-xs font-semibold transition-colors ${
+                          productView === "list" ? "bg-white text-[#001d3d] shadow-xs" : "text-[#5f6e78] hover:text-[#001d3d]"
+                        }`}
+                      >
+                        <List className="h-3.5 w-3.5" /> Lista
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-1 border border-[#dce4e9] bg-[#f4f7f9] p-0.5" role="group" aria-label="Filtro de inventário">
+                      {(
+                        [
+                          { id: "all", label: "Todos" },
+                          { id: "low", label: "Stock baixo" },
+                          { id: "out", label: "Esgotados" },
+                          { id: "featured", label: "Recomendados" },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          aria-pressed={productStockFilter === opt.id}
+                          onClick={() => setProductStockFilter(opt.id)}
+                          className={`min-h-8 px-3 text-xs font-semibold transition-colors ${
+                            productStockFilter === opt.id ? "bg-white text-[#001d3d] shadow-xs" : "text-[#586771] hover:text-[#001d3d]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
                       ))}
-                    </select>
-                  </label>
-                  <div className="flex shrink-0 border border-[#cbd6dc] bg-[#f8fafb] p-0.5" role="group" aria-label="Modo de visualização">
-                    <button
-                      type="button"
-                      onClick={() => setProductView("grid")}
-                      aria-pressed={productView === "grid"}
-                      className={`inline-flex min-h-9 items-center gap-1.5 px-3 text-xs font-semibold transition-colors ${
-                        productView === "grid" ? "bg-white text-[#001d3d] shadow-xs" : "text-[#5f6e78] hover:text-[#001d3d]"
-                      }`}
-                    >
-                      <LayoutGrid className="h-3.5 w-3.5" /> Grelha
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductView("list")}
-                      aria-pressed={productView === "list"}
-                      className={`inline-flex min-h-9 items-center gap-1.5 px-3 text-xs font-semibold transition-colors ${
-                        productView === "list" ? "bg-white text-[#001d3d] shadow-xs" : "text-[#5f6e78] hover:text-[#001d3d]"
-                      }`}
-                    >
-                      <List className="h-3.5 w-3.5" /> Lista
-                    </button>
+                    </div>
+                    {lowOrOutStockCount > 0 && productStockFilter === "all" && (
+                      <button
+                        type="button"
+                        onClick={() => setProductStockFilter("low")}
+                        className="text-xs font-semibold text-[#8a6500] hover:underline tabular-nums"
+                      >
+                        {lowOrOutStockCount} {lowOrOutStockCount === 1 ? "artigo precisa" : "artigos precisam"} de reposição
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1517,22 +1842,23 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
         </main>
       </div>
 
+      {/* Product Create / Edit Dialog */}
       <Dialog open={productDialogOpen} onOpenChange={(open) => { if (!open) void closeProductDialog(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto border-t-4 border-t-[#f2c92f] sm:max-w-2xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto border-t-4 border-t-[#f2c92f] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#001d3d]">{editingProductId ? "Editar artigo" : "Adicionar artigo"}</DialogTitle>
-            <DialogDescription>Preencha os dados que serão usados no catálogo público da loja.</DialogDescription>
+            <DialogDescription>Configure preço, SKU, stock, galeria de fotos e ficha técnica para a loja.</DialogDescription>
           </DialogHeader>
           {productDraft && (
-            <form onSubmit={saveProduct} className="space-y-4">
+            <form onSubmit={saveProduct} className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className={labelClass}>
                   Nome do artigo *
-                  <input required maxLength={120} value={productDraft.name} onChange={(event) => setProductDraft({ ...productDraft, name: event.target.value })} className={fieldClass} />
+                  <input required maxLength={120} value={productDraft.name} onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })} className={fieldClass} />
                 </label>
                 <label className={labelClass}>
                   Categoria *
-                  <select required value={productDraft.categoryId} onChange={(event) => setProductDraft({ ...productDraft, categoryId: event.target.value })} className={fieldClass}>
+                  <select required value={productDraft.categoryId} onChange={(e) => setProductDraft({ ...productDraft, categoryId: e.target.value })} className={fieldClass}>
                     <option value="" disabled>Seleccione uma categoria</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
@@ -1542,21 +1868,98 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   </select>
                 </label>
               </div>
-              <label className={labelClass}>
-                Endereço do artigo (slug)
-                <input maxLength={140} value={productDraft.slug} onChange={(event) => setProductDraft({ ...productDraft, slug: event.target.value })} placeholder="Gerado automaticamente se ficar vazio" className={fieldClass} />
-              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className={labelClass}>
+                  Código interno (SKU)
+                  <input maxLength={40} value={productDraft.sku} onChange={(e) => setProductDraft({ ...productDraft, sku: e.target.value })} placeholder="Ex.: BP-MON-001" className={fieldClass} />
+                </label>
+                <label className={labelClass}>
+                  Endereço do artigo (slug)
+                  <input maxLength={140} value={productDraft.slug} onChange={(e) => setProductDraft({ ...productDraft, slug: e.target.value })} placeholder="Gerado automaticamente se ficar vazio" className={fieldClass} />
+                </label>
+              </div>
+
+              <div className="grid gap-4 border border-[#e2e8ec] bg-[#f8fafb] p-4 sm:grid-cols-2">
+                <label className={labelClass}>
+                  Preço em Kwanzas (vazio = Sob consulta)
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000000000}
+                    step={1}
+                    value={productDraft.priceAoa === null ? "" : productDraft.priceAoa}
+                    onChange={(e) => {
+                      const val = e.target.value.trim();
+                      setProductDraft({ ...productDraft, priceAoa: val === "" ? null : Math.max(0, Math.trunc(Number(val) || 0)) });
+                    }}
+                    placeholder="Sob consulta"
+                    className={fieldClass}
+                  />
+                </label>
+                <label className={labelClass}>
+                  Unidade de venda
+                  <input
+                    maxLength={40}
+                    value={productDraft.unitLabel}
+                    onChange={(e) => setProductDraft({ ...productDraft, unitLabel: e.target.value })}
+                    placeholder="Ex.: unidade, caixa, litro"
+                    className={fieldClass}
+                  />
+                </label>
+
+                <label className={labelClass}>
+                  Controlo de disponibilidade
+                  <select
+                    value={productDraft.stockMode}
+                    onChange={(e) => setProductDraft({ ...productDraft, stockMode: e.target.value as ProductStockMode })}
+                    className={fieldClass}
+                  >
+                    <option value="stock">Com controlo de stock</option>
+                    <option value="por_encomenda">Por encomenda (sempre disponível sob consulta)</option>
+                  </select>
+                </label>
+
+                {productDraft.stockMode === "stock" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className={labelClass}>
+                      Qtd. em stock
+                      <input
+                        type="number"
+                        min={0}
+                        max={1000000}
+                        value={productDraft.stockQuantity}
+                        onChange={(e) => setProductDraft({ ...productDraft, stockQuantity: Math.max(0, Number(e.target.value) || 0) })}
+                        className={fieldClass}
+                      />
+                    </label>
+                    <label className={labelClass}>
+                      Alerta baixo
+                      <input
+                        type="number"
+                        min={0}
+                        max={100000}
+                        value={productDraft.lowStockThreshold}
+                        onChange={(e) => setProductDraft({ ...productDraft, lowStockThreshold: Math.max(0, Number(e.target.value) || 0) })}
+                        className={fieldClass}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <label className={labelClass}>
                 Descrição curta *
-                <textarea required minLength={5} maxLength={220} rows={2} value={productDraft.shortDescription} onChange={(event) => setProductDraft({ ...productDraft, shortDescription: event.target.value })} className={`${fieldClass} resize-y`} />
+                <textarea required minLength={5} maxLength={220} rows={2} value={productDraft.shortDescription} onChange={(e) => setProductDraft({ ...productDraft, shortDescription: e.target.value })} className={`${fieldClass} resize-y`} />
               </label>
               <label className={labelClass}>
                 Descrição completa
-                <textarea maxLength={3000} rows={4} value={productDraft.description} onChange={(event) => setProductDraft({ ...productDraft, description: event.target.value })} className={`${fieldClass} resize-y`} />
+                <textarea maxLength={3000} rows={3} value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} className={`${fieldClass} resize-y`} />
               </label>
 
+              {/* Main Image */}
               <div>
-                <span className={labelClass}>Imagem do artigo (Cloudinary)</span>
+                <span className={labelClass}>Imagem principal (Cloudinary)</span>
                 <div className="mt-2 flex flex-col gap-4 border border-dashed border-[#cbd6dc] bg-[#f8fafb] p-4 sm:flex-row sm:items-center">
                   {imagePreview || defaultProductPreview ? (
                     <img
@@ -1579,34 +1982,204 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                         accept="image/jpeg,image/png,image/webp,image/avif"
                         className="sr-only"
                         disabled={imageUploading}
-                        onChange={(event) => { void handleImageSelected(event.target.files?.[0]); event.target.value = ""; }}
+                        onChange={(e) => { void handleImageSelected(e.target.files?.[0]); e.target.value = ""; }}
                       />
                     </label>
-                    {imagePreview && <button type="button" className={secondaryClass} onClick={() => void removeProductImage()}>Remover imagem</button>}
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        className={secondaryClass}
+                        onClick={() => {
+                          setProductDraft({ ...productDraft, imagePublicId: null });
+                          setImagePreview(null);
+                        }}
+                      >
+                        Remover imagem
+                      </button>
+                    )}
                     <p className="basis-full text-xs text-[#687780]">
                       {defaultProductPreview
-                        ? "A usar a imagem padrão do catálogo. Pode substituí-la enviando uma fotografia para a Cloudinary."
-                        : "JPG, PNG, WebP ou AVIF; máximo 5 MB. Enviado para a Cloudinary através do servidor."}
+                        ? "A usar a fotografia padrão do catálogo. Pode substituí-la enviando uma foto para a Cloudinary."
+                        : "JPG, PNG, WebP ou AVIF; máximo 5 MB."}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Extra Gallery Images */}
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className={labelClass}>Galeria de imagens adicionais ({productDraft.galleryImages.length})</span>
+                  <label className={`${secondaryClass} min-h-9 cursor-pointer px-3 text-xs`}>
+                    {galleryUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                    {galleryUploading ? "A enviar…" : "Adicionar foto"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      className="sr-only"
+                      disabled={galleryUploading}
+                      onChange={(e) => { void handleGalleryImageSelected(e.target.files?.[0]); e.target.value = ""; }}
+                    />
+                  </label>
+                </div>
+                {productDraft.galleryImages.length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-5">
+                    {productDraft.galleryImages.map((img, idx) => (
+                      <div key={`${img.imagePublicId}-${idx}`} className="relative border border-[#dce4e9] bg-white">
+                        {img.imageUrl ? (
+                          <img src={img.imageUrl} alt={img.altText || productDraft.name} referrerPolicy="no-referrer" className="aspect-[4/3] w-full object-cover" />
+                        ) : (
+                          <div className="flex aspect-[4/3] items-center justify-center bg-[#f4f7f9] text-xs text-[#687780]">Foto</div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setProductDraft({
+                              ...productDraft,
+                              galleryImages: productDraft.galleryImages.filter((_, i) => i !== idx),
+                            })
+                          }
+                          aria-label="Remover foto da galeria"
+                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center bg-[#001d3d]/80 text-white hover:bg-[#914533]"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Technical Specifications */}
+              <div className="border border-[#e2e8ec] bg-[#f8fafb] p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-[#263b49]">Especificações técnicas</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProductDraft({
+                        ...productDraft,
+                        specs: [...productDraft.specs, { label: "", value: "" }],
+                      })
+                    }
+                    className={`${secondaryClass} min-h-9 px-3 text-xs`}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Adicionar linha
+                  </button>
+                </div>
+                {productDraft.specs.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {productDraft.specs.map((spec, idx) => (
+                      <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                        <input
+                          value={spec.label}
+                          maxLength={80}
+                          placeholder="Característica (ex.: Capacidade)"
+                          onChange={(e) => {
+                            const next = [...productDraft.specs];
+                            next[idx] = { ...next[idx], label: e.target.value };
+                            setProductDraft({ ...productDraft, specs: next });
+                          }}
+                          className={`${fieldClass} mt-0 min-h-9 py-1.5`}
+                        />
+                        <input
+                          value={spec.value}
+                          maxLength={160}
+                          placeholder="Valor (ex.: 5 Litros)"
+                          onChange={(e) => {
+                            const next = [...productDraft.specs];
+                            next[idx] = { ...next[idx], value: e.target.value };
+                            setProductDraft({ ...productDraft, specs: next });
+                          }}
+                          className={`${fieldClass} mt-0 min-h-9 py-1.5`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setProductDraft({
+                              ...productDraft,
+                              specs: productDraft.specs.filter((_, i) => i !== idx),
+                            })
+                          }
+                          aria-label="Remover especificação"
+                          className="inline-flex h-10 items-center justify-center border border-[#e7d2cf] bg-white px-2.5 text-[#9c4e40] hover:bg-[#fff7f5]"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-[#687780]">
+                    Adicione atributos como material, dimensões, capacidade ou normas para exibir na página do produto.
+                  </p>
+                )}
+              </div>
+
+              {/* PDF Technical Datasheet */}
+              <div className="border border-[#e2e8ec] bg-[#f8fafb] p-4">
+                <span className="block text-sm font-semibold text-[#263b49]">Ficha técnica (PDF)</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <label className={`${secondaryClass} min-h-9 cursor-pointer px-3 text-xs`}>
+                    {datasheetUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                    {datasheetUploading ? "A enviar PDF…" : "Carregar PDF (Cloudinary)"}
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="sr-only"
+                      disabled={datasheetUploading}
+                      onChange={(e) => { void handleDatasheetSelected(e.target.files?.[0]); e.target.value = ""; }}
+                    />
+                  </label>
+                  {productDraft.datasheetPublicId && (
+                    <span className="inline-flex items-center gap-2 border border-[#cce4d7] bg-[#f1f8f4] px-2.5 py-1 text-xs font-semibold text-[#276445]">
+                      PDF carregado
+                      <button
+                        type="button"
+                        onClick={() => setProductDraft({ ...productDraft, datasheetPublicId: null })}
+                        aria-label="Remover PDF"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <label className="mt-3 block text-xs font-medium text-[#54646e]">
+                  Ou link externo HTTPS para ficha técnica PDF (opcional)
+                  <input
+                    type="url"
+                    maxLength={500}
+                    value={productDraft.datasheetExternalUrl}
+                    onChange={(e) => setProductDraft({ ...productDraft, datasheetExternalUrl: e.target.value })}
+                    placeholder="https://..."
+                    className={`${fieldClass} mt-1 min-h-9 py-1.5`}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
                 <label className={labelClass}>
                   Ordem no catálogo
-                  <input type="number" min={0} max={10000} step={1} value={productDraft.sortOrder} onChange={(event) => setProductDraft({ ...productDraft, sortOrder: Number(event.target.value) })} className={fieldClass} />
+                  <input type="number" min={0} max={10000} step={1} value={productDraft.sortOrder} onChange={(e) => setProductDraft({ ...productDraft, sortOrder: Number(e.target.value) })} className={fieldClass} />
                 </label>
                 <label className="flex min-h-11 items-center gap-3 self-end border border-[#dfe7eb] px-3 py-2.5 text-sm font-semibold text-[#344754]">
-                  <input type="checkbox" checked={productDraft.isActive} onChange={(event) => setProductDraft({ ...productDraft, isActive: event.target.checked })} className="h-4 w-4 accent-[#007cc3]" />
-                  Publicar no catálogo
+                  <input type="checkbox" checked={productDraft.isActive} onChange={(e) => setProductDraft({ ...productDraft, isActive: e.target.checked })} className="h-4 w-4 accent-[#007cc3]" />
+                  Publicar na loja
+                </label>
+                <label className="flex min-h-11 items-center gap-3 self-end border border-[#dfe7eb] px-3 py-2.5 text-sm font-semibold text-[#344754]">
+                  <input type="checkbox" checked={productDraft.isFeatured} onChange={(e) => setProductDraft({ ...productDraft, isFeatured: e.target.checked })} className="h-4 w-4 accent-[#007cc3]" />
+                  Recomendado
                 </label>
               </div>
 
               {productFormError && <p role="alert" className="border border-[#f0d3cc] bg-[#fff7f5] px-3 py-2 text-sm text-[#914533]">{productFormError}</p>}
               <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6ecef] pt-4">
                 <button type="button" className={secondaryClass} onClick={() => void closeProductDialog()} disabled={productSaving}>Cancelar</button>
-                <button type="submit" className={actionClass} disabled={productSaving || imageUploading || !categories.some((category) => category.isActive)}>
+                <button
+                  type="submit"
+                  className={actionClass}
+                  disabled={productSaving || imageUploading || galleryUploading || datasheetUploading || !categories.some((category) => category.isActive)}
+                >
                   {productSaving && <LoaderCircle className="h-4 w-4 animate-spin" />}
                   {productSaving ? "A guardar…" : "Guardar artigo"}
                 </button>
@@ -1616,6 +2189,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
         </DialogContent>
       </Dialog>
 
+      {/* Category Dialog */}
       <Dialog open={categoryDialogOpen} onOpenChange={(open) => { if (!open) { setCategoryDialogOpen(false); setCategoryDraft(null); } }}>
         <DialogContent className="border-t-4 border-t-[#f2c92f] sm:max-w-lg">
           <DialogHeader>
@@ -1626,23 +2200,23 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
             <form onSubmit={saveCategory} className="space-y-4">
               <label className={labelClass}>
                 Nome da categoria *
-                <input required minLength={2} maxLength={80} value={categoryDraft.name} onChange={(event) => setCategoryDraft({ ...categoryDraft, name: event.target.value })} className={fieldClass} />
+                <input required minLength={2} maxLength={80} value={categoryDraft.name} onChange={(e) => setCategoryDraft({ ...categoryDraft, name: e.target.value })} className={fieldClass} />
               </label>
               <label className={labelClass}>
                 Endereço da categoria (slug)
-                <input maxLength={100} value={categoryDraft.slug} onChange={(event) => setCategoryDraft({ ...categoryDraft, slug: event.target.value })} placeholder="Gerado automaticamente se ficar vazio" className={fieldClass} />
+                <input maxLength={100} value={categoryDraft.slug} onChange={(e) => setCategoryDraft({ ...categoryDraft, slug: e.target.value })} placeholder="Gerado automaticamente se ficar vazio" className={fieldClass} />
               </label>
               <label className={labelClass}>
                 Descrição
-                <textarea maxLength={300} rows={3} value={categoryDraft.description} onChange={(event) => setCategoryDraft({ ...categoryDraft, description: event.target.value })} className={`${fieldClass} resize-y`} />
+                <textarea maxLength={300} rows={3} value={categoryDraft.description} onChange={(e) => setCategoryDraft({ ...categoryDraft, description: e.target.value })} className={`${fieldClass} resize-y`} />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className={labelClass}>
                   Ordem de apresentação
-                  <input type="number" min={0} max={10000} value={categoryDraft.sortOrder} onChange={(event) => setCategoryDraft({ ...categoryDraft, sortOrder: Number(event.target.value) })} className={fieldClass} />
+                  <input type="number" min={0} max={10000} value={categoryDraft.sortOrder} onChange={(e) => setCategoryDraft({ ...categoryDraft, sortOrder: Number(e.target.value) })} className={fieldClass} />
                 </label>
                 <label className="flex min-h-11 items-center gap-3 self-end border border-[#dfe7eb] px-3 py-2.5 text-sm font-semibold text-[#344754]">
-                  <input type="checkbox" checked={categoryDraft.isActive} onChange={(event) => setCategoryDraft({ ...categoryDraft, isActive: event.target.checked })} className="h-4 w-4 accent-[#007cc3]" />
+                  <input type="checkbox" checked={categoryDraft.isActive} onChange={(e) => setCategoryDraft({ ...categoryDraft, isActive: e.target.checked })} className="h-4 w-4 accent-[#007cc3]" />
                   Activa
                 </label>
               </div>
@@ -1659,69 +2233,188 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
         </DialogContent>
       </Dialog>
 
+      {/* Multi-item Order Create / Edit Dialog */}
       <Dialog open={orderDialogOpen} onOpenChange={(open) => { if (!open) { setOrderDialogOpen(false); setOrderDraft(null); } }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto border-t-4 border-t-[#f2c92f] sm:max-w-2xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto border-t-4 border-t-[#f2c92f] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#001d3d]">{editingOrderId ? "Editar pedido" : "Registar pedido"}</DialogTitle>
             <DialogDescription>
-              Registe ou actualize pedidos recebidos pela loja ou directamente pelo WhatsApp.
+              Suporta vários artigos por encomenda. Ao marcar como Confirmado ou Entregue, o stock é actualizado automaticamente.
             </DialogDescription>
           </DialogHeader>
           {orderDraft && (
             <form onSubmit={saveOrder} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+              {!editingOrderId && customers.length > 0 && (
                 <label className={labelClass}>
-                  Artigo do catálogo
+                  Preencher a partir de cliente registado (opcional)
                   <select
-                    value={orderDraft.productId ?? ""}
-                    onChange={(event) => {
-                      const nextId = event.target.value || null;
-                      const found = products.find((p) => p.id === nextId);
+                    value={orderDraft.customerId ?? ""}
+                    onChange={(e) => {
+                      const cid = e.target.value || null;
+                      const found = customers.find((c) => c.id === cid);
                       setOrderDraft({
                         ...orderDraft,
-                        productId: nextId,
-                        productName: found ? found.name : orderDraft.productName,
+                        customerId: cid,
+                        customerName: found ? found.name : orderDraft.customerName,
+                        telephone: found ? found.telephone : orderDraft.telephone,
+                        address: found ? found.defaultAddress || orderDraft.address : orderDraft.address,
+                        city: found ? found.defaultCity || orderDraft.city : orderDraft.city,
                       });
                     }}
                     className={fieldClass}
                   >
-                    <option value="">Outro artigo (escrever manualmente)</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>{product.name}</option>
+                    <option value="">Novo contacto ou escrever manualmente</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.telephone}){c.defaultCity ? ` · ${c.defaultCity}` : ""}
+                      </option>
                     ))}
                   </select>
                 </label>
-                <label className={labelClass}>
-                  Nome do artigo *
-                  <input
-                    required
-                    minLength={2}
-                    maxLength={160}
-                    value={orderDraft.productName}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, productName: event.target.value })}
-                    className={fieldClass}
-                  />
-                </label>
+              )}
+
+              <div className="border border-[#e2e8ec] bg-[#f8fafb] p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-[#001d3d]">
+                    Artigos do pedido ({orderDraft.items.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const first = products[0];
+                      setOrderDraft({
+                        ...orderDraft,
+                        items: [
+                          ...orderDraft.items,
+                          {
+                            productId: first?.id ?? null,
+                            productName: first?.name ?? "",
+                            sku: first?.sku ?? "",
+                            quantity: 1,
+                            unitPriceAoa: first?.priceAoa ?? null,
+                            unitLabel: first?.unitLabel ?? "unidade",
+                          },
+                        ],
+                      });
+                    }}
+                    className={`${secondaryClass} min-h-9 px-3 text-xs`}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Adicionar artigo
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {orderDraft.items.map((item, idx) => (
+                    <div key={idx} className="grid gap-2 border border-[#dce4e9] bg-white p-3 sm:grid-cols-12 sm:items-end">
+                      <label className="block text-xs font-semibold text-[#455660] sm:col-span-4">
+                        Catálogo
+                        <select
+                          value={item.productId ?? ""}
+                          onChange={(e) => {
+                            const nextId = e.target.value || null;
+                            const found = products.find((p) => p.id === nextId);
+                            const nextItems = [...orderDraft.items];
+                            nextItems[idx] = {
+                              ...nextItems[idx],
+                              productId: nextId,
+                              productName: found ? found.name : nextItems[idx].productName,
+                              sku: found ? found.sku : nextItems[idx].sku,
+                              unitPriceAoa: found ? found.priceAoa : nextItems[idx].unitPriceAoa,
+                              unitLabel: found ? found.unitLabel : nextItems[idx].unitLabel,
+                            };
+                            setOrderDraft({ ...orderDraft, items: nextItems });
+                          }}
+                          className={`${fieldClass} mt-1 min-h-9 py-1.5 text-xs`}
+                        >
+                          <option value="">Artigo manual</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} ({formatKwanza(p.priceAoa)})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="block text-xs font-semibold text-[#455660] sm:col-span-3">
+                        Descrição *
+                        <input
+                          required
+                          minLength={2}
+                          maxLength={160}
+                          value={item.productName}
+                          onChange={(e) => {
+                            const nextItems = [...orderDraft.items];
+                            nextItems[idx] = { ...nextItems[idx], productName: e.target.value };
+                            setOrderDraft({ ...orderDraft, items: nextItems });
+                          }}
+                          className={`${fieldClass} mt-1 min-h-9 py-1.5 text-xs`}
+                        />
+                      </label>
+
+                      <label className="block text-xs font-semibold text-[#455660] sm:col-span-2">
+                        Qtd. *
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          max={10000}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const nextItems = [...orderDraft.items];
+                            nextItems[idx] = { ...nextItems[idx], quantity: Math.max(1, Number(e.target.value) || 1) };
+                            setOrderDraft({ ...orderDraft, items: nextItems });
+                          }}
+                          className={`${fieldClass} mt-1 min-h-9 py-1.5 text-xs tabular-nums`}
+                        />
+                      </label>
+
+                      <label className="block text-xs font-semibold text-[#455660] sm:col-span-2">
+                        Preço (Kz)
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.unitPriceAoa === null ? "" : item.unitPriceAoa}
+                          placeholder="Consulta"
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            const nextItems = [...orderDraft.items];
+                            nextItems[idx] = {
+                              ...nextItems[idx],
+                              unitPriceAoa: val === "" ? null : Math.max(0, Math.trunc(Number(val) || 0)),
+                            };
+                            setOrderDraft({ ...orderDraft, items: nextItems });
+                          }}
+                          className={`${fieldClass} mt-1 min-h-9 py-1.5 text-xs tabular-nums`}
+                        />
+                      </label>
+
+                      <div className="flex justify-end sm:col-span-1">
+                        <button
+                          type="button"
+                          disabled={orderDraft.items.length <= 1}
+                          onClick={() =>
+                            setOrderDraft({
+                              ...orderDraft,
+                              items: orderDraft.items.filter((_, i) => i !== idx),
+                            })
+                          }
+                          aria-label="Remover artigo do pedido"
+                          className="inline-flex h-9 w-9 items-center justify-center border border-[#e7d2cf] text-[#9c4e40] hover:bg-[#fff7f5] disabled:opacity-40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <label className={labelClass}>
-                  Quantidade *
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    max={10000}
-                    value={orderDraft.quantity}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, quantity: Math.max(1, Number(event.target.value) || 1) })}
-                    className={fieldClass}
-                  />
-                </label>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <label className={labelClass}>
                   Estado *
                   <select
                     value={orderDraft.status}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, status: event.target.value as StoreOrderStatus })}
+                    onChange={(e) => setOrderDraft({ ...orderDraft, status: e.target.value as StoreOrderStatus })}
                     className={fieldClass}
                   >
                     {orderStatuses.map((status) => (
@@ -1733,7 +2426,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   Origem *
                   <select
                     value={orderDraft.source}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, source: event.target.value as StoreOrderSource })}
+                    onChange={(e) => setOrderDraft({ ...orderDraft, source: e.target.value as StoreOrderSource })}
                     className={fieldClass}
                   >
                     {orderSources.map((source) => (
@@ -1749,7 +2442,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   <input
                     maxLength={120}
                     value={orderDraft.customerName}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, customerName: event.target.value })}
+                    onChange={(e) => setOrderDraft({ ...orderDraft, customerName: e.target.value })}
                     placeholder="Opcional"
                     className={fieldClass}
                   />
@@ -1762,7 +2455,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                     minLength={6}
                     maxLength={40}
                     value={orderDraft.telephone}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, telephone: event.target.value })}
+                    onChange={(e) => setOrderDraft({ ...orderDraft, telephone: e.target.value })}
                     placeholder="+244 9XX XXX XXX"
                     className={fieldClass}
                   />
@@ -1777,7 +2470,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                     minLength={4}
                     maxLength={500}
                     value={orderDraft.address}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, address: event.target.value })}
+                    onChange={(e) => setOrderDraft({ ...orderDraft, address: e.target.value })}
                     className={fieldClass}
                   />
                 </label>
@@ -1786,7 +2479,7 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   <input
                     maxLength={100}
                     value={orderDraft.city}
-                    onChange={(event) => setOrderDraft({ ...orderDraft, city: event.target.value })}
+                    onChange={(e) => setOrderDraft({ ...orderDraft, city: e.target.value })}
                     placeholder="Ex.: Luanda"
                     className={fieldClass}
                   />
@@ -1799,18 +2492,18 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
                   rows={2}
                   maxLength={500}
                   value={orderDraft.deliveryNotes}
-                  onChange={(event) => setOrderDraft({ ...orderDraft, deliveryNotes: event.target.value })}
+                  onChange={(e) => setOrderDraft({ ...orderDraft, deliveryNotes: e.target.value })}
                   className={`${fieldClass} resize-y`}
                 />
               </label>
 
               <label className={labelClass}>
-                Notas internas da equipa (preço acordado, previsão de entrega, observações)
+                Notas internas da equipa
                 <textarea
-                  rows={3}
+                  rows={2}
                   maxLength={1000}
                   value={orderDraft.adminNotes}
-                  onChange={(event) => setOrderDraft({ ...orderDraft, adminNotes: event.target.value })}
+                  onChange={(e) => setOrderDraft({ ...orderDraft, adminNotes: e.target.value })}
                   placeholder="Ex.: Orçamento enviado por WhatsApp; entrega agendada."
                   className={`${fieldClass} resize-y`}
                 />
@@ -1831,6 +2524,14 @@ function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignO
         </DialogContent>
       </Dialog>
 
+      {/* Printable Orçamento / Nota de Entrega PDF Dialog */}
+      <AdminOrderDocumentDialog
+        order={documentOrder}
+        open={Boolean(documentOrder)}
+        onOpenChange={(open) => { if (!open) setDocumentOrder(null); }}
+      />
+
+      {/* Delete Confirmation Dialog */}
       <Dialog open={Boolean(confirmTarget)} onOpenChange={(open) => { if (!open && !confirmDeleting) setConfirmTarget(null); }}>
         <DialogContent className="border-t-4 border-t-[#f2c92f] sm:max-w-md">
           <DialogHeader>
@@ -1900,6 +2601,8 @@ function StatCard({
 function ProductCard({ product, onEdit, onDelete }: { product: StoreProduct; onEdit: () => void; onDelete: () => void }) {
   const imageSrc = resolveProductImage(product);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const stock = stockStatusInfo(product);
+
   return (
     <article className="group flex flex-col border border-[#dce4e9] bg-white transition-colors hover:border-[#007cc3]">
       <div className="aspect-[4/3] w-full overflow-hidden border-b border-[#e5ebee] bg-[#f4f7f9]">
@@ -1925,11 +2628,19 @@ function ProductCard({ product, onEdit, onDelete }: { product: StoreProduct; onE
           <span className={`font-semibold ${product.isActive ? "text-[#276445]" : "text-[#697780]"}`}>
             {product.isActive ? "Publicado" : "Rascunho"}
           </span>
+          <span aria-hidden="true" className="text-[#b6c2c9]">·</span>
+          <span className={`font-semibold tabular-nums ${stock.textClass}`}>{stock.shortLabel}</span>
         </div>
         <h3 className="mt-1.5 text-base font-semibold leading-snug text-[#001d3d]">{product.name}</h3>
         <p className="mt-1.5 line-clamp-2 flex-1 text-sm leading-5 text-[#62727c]">{product.shortDescription}</p>
-        <div className="mt-4 flex items-center justify-between gap-2 border-t border-[#e8edef] pt-3">
-          <span className="truncate font-mono text-[11px] text-[#7c8b94]">/{product.slug}</span>
+        <div className="mt-3 flex items-baseline justify-between gap-2 text-xs">
+          <span className="font-bold tabular-nums text-[#001d3d]">{formatKwanza(product.priceAoa)}</span>
+          <span className="font-mono text-[#7c8b94]">{product.sku || `/${product.slug}`}</span>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#e8edef] pt-3">
+          <span className="text-xs tabular-nums text-[#61717b]">
+            {product.stockMode === "stock" ? `Stock: ${product.stockQuantity}` : "Sob encomenda"}
+          </span>
           <div className="flex shrink-0 gap-2">
             <button type="button" className={secondaryClass} onClick={onEdit} aria-label={`Editar ${product.name}`}>
               <Pencil className="h-4 w-4" /> Editar
@@ -1952,6 +2663,8 @@ function ProductCard({ product, onEdit, onDelete }: { product: StoreProduct; onE
 function ProductRow({ product, onEdit, onDelete }: { product: StoreProduct; onEdit: () => void; onDelete: () => void }) {
   const imageSrc = resolveProductImage(product);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const stock = stockStatusInfo(product);
+
   return (
     <article className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-[#fafcfd] sm:flex-row sm:items-center sm:px-6">
       <div className="aspect-[4/3] w-28 shrink-0 overflow-hidden border border-[#e0e7eb] bg-[#f4f7f9]">
@@ -1977,9 +2690,18 @@ function ProductRow({ product, onEdit, onDelete }: { product: StoreProduct; onEd
             {product.isActive ? "Publicado" : "Rascunho"}
           </span>
           <span aria-hidden="true" className="text-[#b6c2c9]">·</span>
-          <span className="font-mono text-[#7c8b94]">/{product.slug}</span>
+          <span className={`font-semibold tabular-nums ${stock.textClass}`}>{stock.label}</span>
+          {product.sku && (
+            <>
+              <span aria-hidden="true" className="text-[#b6c2c9]">·</span>
+              <span className="font-mono text-[#7c8b94]">{product.sku}</span>
+            </>
+          )}
         </div>
-        <h3 className="mt-1 font-semibold text-[#001d3d]">{product.name}</h3>
+        <div className="mt-1 flex flex-wrap items-baseline gap-3">
+          <h3 className="font-semibold text-[#001d3d]">{product.name}</h3>
+          <span className="text-sm font-bold tabular-nums text-[#001d3d]">{formatKwanza(product.priceAoa)}</span>
+        </div>
         <p className="mt-1 line-clamp-2 text-sm leading-5 text-[#62727c]">{product.shortDescription}</p>
       </div>
       <div className="flex shrink-0 gap-2">
@@ -2028,11 +2750,13 @@ function CategoryCard({ category, onEdit, onDelete }: { category: StoreCategory;
 function OrderRow({
   order,
   onStatusChange,
+  onOpenDocument,
   onEdit,
   onDelete,
 }: {
   order: StoreOrder;
   onStatusChange: (status: StoreOrderStatus) => void;
+  onOpenDocument: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -2049,11 +2773,27 @@ function OrderRow({
           <span className="text-[#5a6b75]">{orderSourceLabel[order.source]}</span>
           <span aria-hidden="true" className="text-[#b6c2c9]">·</span>
           <span className="tabular-nums text-[#798790]">{formatDateTime(order.createdAt)}</span>
+          {order.stockDeducted && (
+            <>
+              <span aria-hidden="true" className="text-[#b6c2c9]">·</span>
+              <span className="font-medium text-[#276445]">Stock reservado</span>
+            </>
+          )}
         </div>
 
-        <h3 className="text-base font-semibold text-[#001d3d]">
-          {order.productName} <span className="tabular-nums text-[#007cc3]">× {order.quantity}</span>
-        </h3>
+        <div className="space-y-1">
+          {order.items.map((item) => (
+            <p key={item.id} className="text-sm font-semibold text-[#001d3d]">
+              {item.productName}{" "}
+              <span className="tabular-nums text-[#007cc3]">× {item.quantity}</span>
+              {item.subtotalAoa !== null && (
+                <span className="ml-2 text-xs font-medium tabular-nums text-[#54646e]">
+                  ({formatKwanza(item.subtotalAoa)})
+                </span>
+              )}
+            </p>
+          ))}
+        </div>
 
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#4e5f69]">
           {order.customerName && <span className="font-medium text-[#001d3d]">{order.customerName}</span>}
@@ -2064,6 +2804,11 @@ function OrderRow({
             <MapPin className="h-3.5 w-3.5 text-[#007cc3]" />
             {order.address}{order.city ? `, ${order.city}` : ""}
           </span>
+          {order.totalAoa !== null && (
+            <span className="font-bold tabular-nums text-[#001d3d]">
+              Total: {formatKwanza(order.totalAoa)}
+            </span>
+          )}
         </div>
 
         {order.deliveryNotes && (
@@ -2089,6 +2834,14 @@ function OrderRow({
             <option key={status} value={status}>{orderStatusLabel[status]}</option>
           ))}
         </select>
+        <button
+          type="button"
+          onClick={onOpenDocument}
+          className={`${secondaryClass} whitespace-nowrap`}
+          title="Emitir Orçamento ou Nota de Entrega (PDF)"
+        >
+          <Printer className="h-4 w-4" /> PDF
+        </button>
         <a
           href={whatsappHrefForOrder(order)}
           target="_blank"

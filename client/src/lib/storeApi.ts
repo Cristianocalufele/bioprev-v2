@@ -1,4 +1,11 @@
-import type { StoreCatalog, StoreOrder } from "@shared/store";
+import type {
+  StoreCatalog,
+  StoreCustomer,
+  StoreMetrics,
+  StoreMetricsPeriod,
+  StoreOrder,
+  StoreProduct,
+} from "@shared/store";
 
 export type AdminAccess = { isAdmin: true; email: string };
 export type StoreAdminConfig = {
@@ -45,6 +52,7 @@ export type AdminAuthStatus = {
   usingSecretEnv: boolean;
 };
 export type UploadedProductImage = { publicId: string; imageUrl: string };
+export type UploadedProductDatasheet = { publicId: string; datasheetUrl: string };
 
 let inMemoryAdminToken: string | null = null;
 
@@ -100,9 +108,17 @@ export async function publicStoreCatalog(): Promise<StoreCatalog> {
   return storeApi<StoreCatalog>("/api/store/catalog");
 }
 
+export async function publicProductBySlug(slug: string): Promise<{
+  product: StoreProduct;
+  relatedProducts: StoreProduct[];
+}> {
+  return storeApi<{ product: StoreProduct; relatedProducts: StoreProduct[] }>(
+    `/api/store/products/${encodeURIComponent(slug)}`,
+  );
+}
+
 export async function submitStoreOrder(payload: {
-  productId: string;
-  quantity: number;
+  items: Array<{ productId: string; quantity: number }>;
   customerName: string;
   telephone: string;
   address: string;
@@ -135,9 +151,41 @@ export async function uploadProductImage(file: File): Promise<UploadedProductIma
   return responseJson<UploadedProductImage>(response);
 }
 
+export async function uploadProductDatasheet(file: File): Promise<UploadedProductDatasheet> {
+  if (file.size > 10 * 1024 * 1024) {
+    throw new StoreApiError("A ficha técnica PDF não pode exceder 10 MB.", 413, "PDF_SIZE_LIMIT");
+  }
+  if (file.type !== "application/pdf") {
+    throw new StoreApiError("Seleccione um ficheiro em formato PDF.", 415, "INVALID_PDF_FORMAT");
+  }
+  const headers: Record<string, string> = { "Content-Type": "application/pdf" };
+  if (inMemoryAdminToken) {
+    headers.Authorization = `Bearer ${inMemoryAdminToken}`;
+  }
+  const response = await fetch("/api/admin/datasheet", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: file,
+  });
+  return responseJson<UploadedProductDatasheet>(response);
+}
+
 export async function runStoreSync(overwriteImages = false): Promise<StoreSyncResult> {
   return storeApi<StoreSyncResult>("/api/admin/sync", {
     method: "POST",
     body: JSON.stringify({ overwriteImages }),
   });
+}
+
+export async function fetchAdminCustomers(): Promise<StoreCustomer[]> {
+  return storeApi<StoreCustomer[]>("/api/admin/customers");
+}
+
+export async function fetchCustomerOrders(customerId: string): Promise<StoreOrder[]> {
+  return storeApi<StoreOrder[]>(`/api/admin/customers/${encodeURIComponent(customerId)}/orders`);
+}
+
+export async function fetchAdminMetrics(period: StoreMetricsPeriod): Promise<StoreMetrics> {
+  return storeApi<StoreMetrics>(`/api/admin/metrics?period=${encodeURIComponent(period)}`);
 }

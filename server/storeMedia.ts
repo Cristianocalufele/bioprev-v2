@@ -4,6 +4,7 @@ import { StoreError } from "./storeDatabase";
 
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 const maximumImageBytes = 5 * 1024 * 1024;
+const maximumPdfBytes = 10 * 1024 * 1024;
 
 export function isCloudinaryConfigured(): boolean {
   return Boolean(
@@ -19,7 +20,7 @@ function cloudinaryConfig() {
   const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloudName || !apiKey || !apiSecret) {
     throw new StoreError(
-      "O envio de imagens ainda não está configurado. Consulte o guia de configuração da loja.",
+      "O envio de ficheiros ainda não está configurado. Consulte o guia de configuração da loja.",
       503,
       "MEDIA_CONFIGURATION_REQUIRED",
     );
@@ -64,6 +65,10 @@ function hasValidImageSignature(buffer: Buffer, mimeType: string): boolean {
   return false;
 }
 
+function hasValidPdfSignature(buffer: Buffer): boolean {
+  return buffer.length >= 5 && buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+}
+
 export function assertImageUpload(buffer: Buffer, mimeType: string) {
   if (!allowedMimeTypes.has(mimeType) || !hasValidImageSignature(buffer, mimeType)) {
     throw new StoreError("Formato de imagem não aceite. Use JPG, PNG, WebP ou AVIF.", 415, "INVALID_IMAGE_FORMAT");
@@ -73,10 +78,25 @@ export function assertImageUpload(buffer: Buffer, mimeType: string) {
   }
 }
 
+export function assertPdfUpload(buffer: Buffer, mimeType: string) {
+  if (mimeType !== "application/pdf" || !hasValidPdfSignature(buffer)) {
+    throw new StoreError("Envie um documento em formato PDF válido.", 415, "INVALID_PDF_FORMAT");
+  }
+  if (buffer.length === 0 || buffer.length > maximumPdfBytes) {
+    throw new StoreError("A ficha técnica PDF não pode exceder 10 MB.", 413, "PDF_SIZE_LIMIT");
+  }
+}
+
 export function cloudinaryImageUrl(publicId: string): string | null {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   if (!cloudName || !publicId.startsWith("bioprev/products/")) return null;
-  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,w_800,c_limit/${publicId.split("/").map(encodeURIComponent).join("/")}`;
+  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,w_900,c_limit/${publicId.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+export function cloudinaryDatasheetUrl(publicId: string): string | null {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  if (!cloudName || !publicId.startsWith("bioprev/datasheets/")) return null;
+  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/raw/upload/${publicId.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 export async function uploadProductImage(buffer: Buffer, mimeType: string): Promise<{ publicId: string; imageUrl: string }> {
@@ -119,5 +139,46 @@ export async function deleteProductImage(publicId: string): Promise<void> {
   const result = await cloudinary.uploader.destroy(publicId, { resource_type: "image", invalidate: true });
   if (result.result !== "ok" && result.result !== "not found") {
     throw new StoreError("Não foi possível remover a imagem da Cloudinary.", 502, "MEDIA_DELETE_FAILED");
+  }
+}
+
+export async function uploadProductDatasheet(buffer: Buffer, mimeType: string): Promise<{ publicId: string; datasheetUrl: string }> {
+  const cloudName = cloudinaryConfig();
+  assertPdfUpload(buffer, mimeType);
+  const fileKey = `${randomUUID()}.pdf`;
+  const uploaded = await new Promise<{ public_id: string; secure_url: string }>((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      {
+        folder: "bioprev/datasheets",
+        public_id: fileKey,
+        resource_type: "raw",
+        overwrite: false,
+      },
+      (error, result) => {
+        if (error || !result) return reject(new StoreError("A Cloudinary não conseguiu guardar o PDF da ficha técnica.", 502, "DATASHEET_UPLOAD_FAILED"));
+        resolve(result);
+      },
+    ).end(buffer);
+  });
+
+  if (!uploaded.public_id.startsWith("bioprev/datasheets/") || !uploaded.secure_url.startsWith(`https://res.cloudinary.com/${cloudName}/`)) {
+    try {
+      await deleteProductDatasheet(uploaded.public_id);
+    } catch {
+      // Ignore cleanup failure
+    }
+    throw new StoreError("A resposta do serviço de ficheiros não passou na validação.", 502, "DATASHEET_INVALID_RESPONSE");
+  }
+  return { publicId: uploaded.public_id, datasheetUrl: uploaded.secure_url };
+}
+
+export async function deleteProductDatasheet(publicId: string): Promise<void> {
+  if (!publicId.startsWith("bioprev/datasheets/") || publicId.includes("..")) {
+    throw new StoreError("A ficha técnica indicada não pertence ao catálogo da loja.", 400, "INVALID_DATASHEET_ID");
+  }
+  cloudinaryConfig();
+  const result = await cloudinary.uploader.destroy(publicId, { resource_type: "raw", invalidate: true });
+  if (result.result !== "ok" && result.result !== "not found") {
+    throw new StoreError("Não foi possível remover a ficha técnica da Cloudinary.", 502, "DATASHEET_DELETE_FAILED");
   }
 }

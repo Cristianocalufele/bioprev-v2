@@ -4,8 +4,11 @@ import {
   adminOrderInputSchema,
   adminOrderUpdateSchema,
   categoryPayloadSchema,
+  customerInputSchema,
+  customerUpdateSchema,
   productPayloadSchema,
   publicOrderInputSchema,
+  type StoreMetricsPeriod,
 } from "../shared/store";
 import {
   getAdminAuthStatus,
@@ -16,6 +19,7 @@ import {
 } from "./storeAuth";
 import { StoreError, verifyTursoHealth } from "./storeDatabase";
 import {
+  createAdminCustomer,
   createAdminOrder,
   createCategory,
   createProduct,
@@ -23,16 +27,24 @@ import {
   deleteAdminOrder,
   deleteCategory,
   deleteProduct,
+  getAdminCustomerOrders,
   getAdminStoreCatalog,
+  getAdminStoreMetrics,
+  getPublicProductBySlug,
   getPublicStoreCatalog,
+  listAdminCustomers,
   listAdminOrders,
+  updateAdminCustomer,
   updateAdminOrder,
   updateCategory,
   updateProduct,
 } from "./storeRepository";
 import {
   assertImageUpload,
+  assertPdfUpload,
+  deleteProductDatasheet,
   deleteProductImage,
+  uploadProductDatasheet,
   uploadProductImage,
   verifyCloudinaryHealth,
 } from "./storeMedia";
@@ -43,6 +55,7 @@ import {
 
 const router = Router();
 const uuidSchema = z.string().uuid();
+const slugSchema = z.string().trim().min(1).max(140).regex(/^[a-z0-9-]+$/i);
 const passcodeSetupSchema = z.object({
   passcode: z.string().trim().min(6, "A palavra-passe deve ter pelo menos 6 caracteres.").max(128),
 });
@@ -74,6 +87,18 @@ async function run(res: Response, action: () => Promise<unknown>, status = 200) 
 
 router.get("/api/store/catalog", async (_req, res) => {
   return run(res, getPublicStoreCatalog);
+});
+
+router.get("/api/store/products/:slug", async (req, res) => {
+  try {
+    const slug = slugSchema.parse(req.params.slug);
+    const result = await getPublicProductBySlug(slug);
+    return result
+      ? res.json(result)
+      : res.status(404).json({ message: "O artigo não foi encontrado." });
+  } catch (error) {
+    return sendError(res, error);
+  }
 });
 
 router.post("/api/store/orders", async (req, res) => {
@@ -159,6 +184,13 @@ router.get("/api/admin/catalog", requireStoreAdmin, async (_req, res) => {
   return run(res, getAdminStoreCatalog);
 });
 
+router.get("/api/admin/metrics", requireStoreAdmin, async (req, res) => {
+  const rawPeriod = typeof req.query.period === "string" ? req.query.period : "30d";
+  const period: StoreMetricsPeriod =
+    rawPeriod === "7d" || rawPeriod === "30d" || rawPeriod === "all" ? rawPeriod : "30d";
+  return run(res, () => getAdminStoreMetrics(period));
+});
+
 router.post("/api/admin/categories", requireStoreAdmin, async (req, res) => {
   try {
     return res.status(201).json(await createCategory(categoryPayloadSchema.parse(req.body)));
@@ -220,6 +252,37 @@ router.delete("/api/admin/media", requireStoreAdmin, async (req, res) => {
   }
 });
 
+router.post(
+  "/api/admin/datasheet",
+  requireStoreAdmin,
+  express.raw({
+    type: ["application/pdf"],
+    limit: "10mb",
+  }),
+  async (req, res) => {
+    try {
+      if (!Buffer.isBuffer(req.body)) {
+        throw new StoreError("Envie um documento PDF válido (máx. 10 MB).", 415, "INVALID_PDF_FORMAT");
+      }
+      const mimeType = req.get("content-type")?.split(";")[0].trim().toLowerCase() ?? "";
+      assertPdfUpload(req.body, mimeType);
+      return res.status(201).json(await uploadProductDatasheet(req.body, mimeType));
+    } catch (error) {
+      return sendError(res, error);
+    }
+  },
+);
+
+router.delete("/api/admin/datasheet", requireStoreAdmin, async (req, res) => {
+  try {
+    const publicId = z.string().regex(/^bioprev\/datasheets\/[A-Za-z0-9_.-]+$/).parse(req.body?.publicId);
+    await deleteProductDatasheet(publicId);
+    return res.status(204).end();
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
 router.post("/api/admin/products", requireStoreAdmin, async (req, res) => {
   try {
     return res.status(201).json(await createProduct(productPayloadSchema.parse(req.body)));
@@ -234,11 +297,17 @@ router.put("/api/admin/products/:id", requireStoreAdmin, async (req, res) => {
     const result = await updateProduct(id, productPayloadSchema.parse(req.body));
     if (!result) return res.status(404).json({ message: "O artigo não foi encontrado." });
 
-    const imageChanged = result.previousImagePublicId !== result.product.imagePublicId;
     let imageCleanupWarning = false;
-    if (imageChanged && result.previousImagePublicId) {
+    for (const oldImageId of result.removedImagePublicIds) {
       try {
-        await deleteProductImage(result.previousImagePublicId);
+        await deleteProductImage(oldImageId);
+      } catch {
+        imageCleanupWarning = true;
+      }
+    }
+    if (result.previousDatasheetPublicId) {
+      try {
+        await deleteProductDatasheet(result.previousDatasheetPublicId);
       } catch {
         imageCleanupWarning = true;
       }
@@ -255,9 +324,16 @@ router.delete("/api/admin/products/:id", requireStoreAdmin, async (req, res) => 
     const result = await deleteProduct(id);
     if (!result.deleted) return res.status(404).json({ message: "O artigo não foi encontrado." });
     let imageCleanupWarning = false;
-    if (result.imagePublicId) {
+    for (const imageId of result.imagePublicIds) {
       try {
-        await deleteProductImage(result.imagePublicId);
+        await deleteProductImage(imageId);
+      } catch {
+        imageCleanupWarning = true;
+      }
+    }
+    if (result.datasheetPublicId) {
+      try {
+        await deleteProductDatasheet(result.datasheetPublicId);
       } catch {
         imageCleanupWarning = true;
       }
@@ -297,6 +373,39 @@ router.delete("/api/admin/orders/:id", requireStoreAdmin, async (req, res) => {
     const id = uuidSchema.parse(req.params.id);
     const deleted = await deleteAdminOrder(id);
     return deleted ? res.status(204).end() : res.status(404).json({ message: "O pedido não foi encontrado." });
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+router.get("/api/admin/customers", requireStoreAdmin, async (_req, res) => {
+  return run(res, listAdminCustomers);
+});
+
+router.post("/api/admin/customers", requireStoreAdmin, async (req, res) => {
+  try {
+    const payload = customerInputSchema.parse(req.body);
+    return res.status(201).json(await createAdminCustomer(payload));
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+router.patch("/api/admin/customers/:id", requireStoreAdmin, async (req, res) => {
+  try {
+    const id = uuidSchema.parse(req.params.id);
+    const payload = customerUpdateSchema.parse(req.body);
+    const updated = await updateAdminCustomer(id, payload);
+    return updated ? res.json(updated) : res.status(404).json({ message: "O cliente não foi encontrado." });
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+router.get("/api/admin/customers/:id/orders", requireStoreAdmin, async (req, res) => {
+  try {
+    const id = uuidSchema.parse(req.params.id);
+    return res.json(await getAdminCustomerOrders(id));
   } catch (error) {
     return sendError(res, error);
   }
