@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StoreCartProvider } from "@/lib/storeCart";
+import { ADMIN_BASE_PATH, ADMIN_LOGIN_PATH } from "@/lib/adminRoute";
 import { lazy, Suspense, useEffect } from "react";
 
 const Home = lazy(() => import("@/pages/Home"));
@@ -93,15 +94,9 @@ function Router() {
     <Suspense fallback={<PageLoader />}>
       <ScrollToHash />
       <Switch>
-        <Route path="/admin/login" component={AdminLoginPage} />
-        <Route path="/login">
-          <Redirect to="/admin/login" />
-        </Route>
-        <Route path="/sign-in/*?">
-          <Redirect to="/admin/login" />
-        </Route>
-        <Route path="/admin" component={AdminPage} />
-        <Route path="/admin/:rest*" component={AdminPage} />
+        <Route path={ADMIN_LOGIN_PATH} component={AdminLoginPage} />
+        <Route path={ADMIN_BASE_PATH} component={AdminPage} />
+        <Route path={`${ADMIN_BASE_PATH}/:rest*`} component={AdminPage} />
         <Route path="/" component={Home} />
         <Route path="/contact" component={Contact} />
         <Route path="/loja" component={Loja} />

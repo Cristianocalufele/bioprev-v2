@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Helmet } from "react-helmet-async";
 import { Redirect, Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -72,6 +73,7 @@ import {
   type StoreAdminConfig,
   type StoreSyncResult,
 } from "@/lib/storeApi";
+import { ADMIN_BASE_PATH, ADMIN_LOGIN_PATH } from "@/lib/adminRoute";
 import { formatKwanza, stockStatusInfo } from "@/lib/storeFormat";
 import { resolveProductImage } from "@/lib/storeImages";
 import { AdminAnalyticsTab } from "./AdminAnalyticsTab";
@@ -273,7 +275,7 @@ export function AdminLoginPage() {
   });
 
   if (getAdminToken()) {
-    return <Redirect to="/admin" />;
+    return <Redirect to={ADMIN_BASE_PATH} />;
   }
 
   if (authStatusQuery.isPending) {
@@ -302,7 +304,7 @@ export function AdminLoginPage() {
       setPasscode("");
       setConfirmPasscode("");
       await queryClient.invalidateQueries({ queryKey: ["store-admin"] });
-      setLocation("/admin");
+      setLocation(ADMIN_BASE_PATH);
     } catch (error) {
       setAuthError(apiError(error, "Não foi possível validar a senha."));
     } finally {
@@ -312,6 +314,10 @@ export function AdminLoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f4f7f9] px-4 py-12">
+      <Helmet>
+        <title>Área Reservada | Bioprev Angola</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <section className="w-full max-w-md border border-[#e0e7eb] border-t-4 border-t-[#f2c92f] bg-white p-7 shadow-sm sm:p-9">
         <div className="mb-7 flex items-center justify-between gap-4">
           <img src="/logo.svg" alt="Bioprev" className="h-11 w-auto" />
@@ -427,12 +433,12 @@ export function AdminPage() {
     if (token && accessQuery.isError) {
       setAdminToken(null);
       queryClient.removeQueries({ queryKey: ["store-admin"] });
-      setLocation("/admin/login");
+      setLocation(ADMIN_LOGIN_PATH);
     }
   }, [accessQuery.isError, queryClient, setLocation, token]);
 
   if (!token) {
-    return <Redirect to="/admin/login" />;
+    return <Redirect to={ADMIN_LOGIN_PATH} />;
   }
 
   if (accessQuery.isPending) {
@@ -440,16 +446,24 @@ export function AdminPage() {
   }
 
   if (accessQuery.isError || !accessQuery.data) {
-    return <Redirect to="/admin/login" />;
+    return <Redirect to={ADMIN_LOGIN_PATH} />;
   }
 
   const handleSignOut = () => {
     setAdminToken(null);
     queryClient.removeQueries({ queryKey: ["store-admin"] });
-    setLocation("/admin/login");
+    setLocation(ADMIN_LOGIN_PATH);
   };
 
-  return <AdminWorkspace adminEmail={accessQuery.data.email} onSignOut={handleSignOut} />;
+  return (
+    <>
+      <Helmet>
+        <title>Administração da Loja | Bioprev Angola</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+      <AdminWorkspace adminEmail={accessQuery.data.email} onSignOut={handleSignOut} />
+    </>
+  );
 }
 
 function AdminWorkspace({ adminEmail, onSignOut }: { adminEmail: string; onSignOut: () => void }) {
